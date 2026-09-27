@@ -1,0 +1,405 @@
+/* Self-hosted via @fontsource-variable/inter — no render-blocking Google Fonts request */
+@import "@fontsource-variable/inter";
+
+@import "tailwindcss";
+@import "@agent-native/core/styles/agent-native.css";
+@import "@agent-native/toolkit/styles.css";
+@import "@agent-native/agentkit/react/styles.css";
+
+@source "./**/*.{ts,tsx}";
+
+:root {
+  --background: 210 20% 98%;
+  --foreground: 220 28% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 28% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 28% 12%;
+  --primary: 42 100% 50%;
+  --primary-foreground: 220 28% 12%;
+  --secondary: 217 86% 31%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 210 20% 96%;
+  --muted-foreground: 215 16% 43%;
+  --accent: 42 100% 94%;
+  --accent-foreground: 217 86% 25%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 214 20% 88%;
+  --input: 214 20% 84%;
+  --ring: 217 86% 31%;
+  --radius: 0.5rem;
+  --sidebar-background: 217 86% 31%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-primary: 42 100% 50%;
+  --sidebar-primary-foreground: 220 28% 12%;
+  --sidebar-accent: 217 68% 25%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 217 68% 38%;
+  --sidebar-ring: 42 100% 50%;
+  --chat-sidebar-width: 17.25rem;
+  --chat-sidebar-content-inset: 0.5rem;
+  --chat-sidebar-row-padding: 0.75rem;
+  --chat-sidebar-title-fade: 1.25rem;
+}
+
+.chat-layout-shell {
+  --agent-layout-left-drawer-expanded-width: var(--chat-sidebar-width);
+  --agent-native-lower-surface: var(--agent-kit-nav-surface);
+}
+
+.agentkit-chat-empty-copy {
+  text-align: center;
+}
+
+.agentkit-chat-empty-copy h1 {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.agentkit-chat-empty-copy p {
+  margin: 0.5rem 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.agent-kit-chat-footer-stack {
+  inline-size: min(100%, 47rem);
+  margin-inline: auto;
+  pointer-events: auto;
+}
+
+.agent-kit-chat-footer-stack > .agentkit-composer-stack {
+  inline-size: 100%;
+}
+
+.agent-kit-chat-guided-question {
+  max-block-size: min(32rem, 58dvh);
+  overflow: auto;
+  margin-block-end: 0.5rem;
+  border: 1px solid var(--agentkit-border);
+  border-radius: var(--agentkit-radius);
+  background: var(--agentkit-surface);
+  box-shadow: var(--agentkit-elevation);
+}
+
+.chat-sidebar-history .an-chat-history__list {
+  padding-top: 0;
+}
+
+.chat-sidebar-history .an-chat-history__section-label {
+  padding: 8px
+    calc(var(--chat-sidebar-content-inset) + var(--chat-sidebar-row-padding))
+    5px;
+  color: hsl(var(--sidebar-foreground) / 0.66);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.chat-sidebar-history.an-chat-history--rail .an-chat-history-row {
+  margin-inline: var(--chat-sidebar-content-inset);
+  border-radius: calc(var(--radius) + 2px);
+}
+
+.chat-sidebar-history.an-chat-history--rail .an-chat-history-row__button {
+  min-height: 34px;
+  padding-block: 7px;
+  padding-inline: var(--chat-sidebar-row-padding);
+  color: hsl(var(--sidebar-foreground));
+}
+
+.chat-sidebar-history.an-chat-history--rail
+  .an-chat-history-row--has-menu
+  .an-chat-history-row__button {
+  padding-inline-end: calc(var(--chat-sidebar-row-padding) + 1.5rem);
+}
+
+.chat-sidebar-history .an-chat-history-row__title {
+  flex: 1 1 auto;
+  color: hsl(var(--sidebar-accent-foreground));
+  font-size: 13px;
+  font-weight: 400;
+  text-overflow: clip;
+}
+
+.chat-sidebar-thread-title-shell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-sidebar-thread-title {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.chat-sidebar-thread-running {
+  color: hsl(var(--sidebar-foreground) / 0.72);
+}
+
+.chat-sidebar-thread-title[data-overflow="true"] {
+  mask-image: linear-gradient(
+    to right,
+    hsl(var(--foreground)) 0,
+    hsl(var(--foreground)) calc(100% - var(--chat-sidebar-title-fade)),
+    hsl(var(--foreground) / 0) 100%
+  );
+}
+
+.chat-sidebar-thread-title__content {
+  display: block;
+  width: max-content;
+  transform: translateX(0);
+}
+
+.an-chat-history-row:hover
+  .chat-sidebar-thread-title[data-overflow="true"]
+  .chat-sidebar-thread-title__content {
+  animation: chat-sidebar-title-reveal
+    var(--chat-sidebar-title-duration, 1800ms) ease-in-out 350ms;
+}
+
+.chat-sidebar-thread-details {
+  border-color: hsl(var(--sidebar-border));
+}
+
+.chat-sidebar-history.an-chat-history--rail
+  .an-chat-history-row__menu-trigger--pinned {
+  pointer-events: none;
+  opacity: 0;
+}
+
+.chat-sidebar-history.an-chat-history--rail
+  .an-chat-history-row:hover
+  .an-chat-history-row__menu-trigger--pinned,
+.chat-sidebar-history.an-chat-history--rail
+  .an-chat-history-row:focus-within
+  .an-chat-history-row__menu-trigger--pinned,
+.chat-sidebar-history.an-chat-history--rail
+  .an-chat-history-row__menu-trigger--pinned[aria-expanded="true"] {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+@keyframes chat-sidebar-title-reveal {
+  to {
+    transform: translateX(calc(-1 * var(--chat-sidebar-title-shift, 0px)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .an-chat-history-row:hover .chat-sidebar-thread-title__content {
+    animation: none;
+  }
+}
+
+.chat-sidebar-history.an-chat-history--rail
+  .an-chat-history-row--active
+  .an-chat-history-row__button {
+  background: hsl(var(--sidebar-accent));
+  color: hsl(var(--sidebar-accent-foreground));
+}
+
+.dark {
+  --background: 220 28% 9%;
+  --foreground: 210 20% 96%;
+  --card: 220 25% 13%;
+  --card-foreground: 210 20% 96%;
+  --popover: 220 25% 13%;
+  --popover-foreground: 210 20% 96%;
+  --primary: 42 100% 50%;
+  --primary-foreground: 220 28% 12%;
+  --secondary: 217 70% 62%;
+  --secondary-foreground: 220 28% 9%;
+  --muted: 220 20% 17%;
+  --muted-foreground: 215 14% 68%;
+  --accent: 42 45% 19%;
+  --accent-foreground: 42 100% 76%;
+  --destructive: 0 62% 55%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 220 17% 25%;
+  --input: 220 17% 28%;
+  --ring: 42 100% 50%;
+  --radius: 0.5rem;
+  --sidebar-background: 217 75% 16%;
+  --sidebar-foreground: 215 14% 68%;
+  --sidebar-primary: 42 100% 50%;
+  --sidebar-primary-foreground: 220 28% 12%;
+  --sidebar-accent: 217 58% 22%;
+  --sidebar-accent-foreground: 210 20% 96%;
+  --sidebar-border: 217 45% 28%;
+  --sidebar-ring: 42 100% 50%;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Inter Variable", "Inter", sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.22);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.34);
+}
+
+.dgm-hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(
+    110deg,
+    black 0%,
+    rgba(0, 0, 0, 0.65) 45%,
+    transparent 88%
+  );
+}
+
+.dgm-map-grid {
+  background-image:
+    linear-gradient(rgba(170, 202, 249, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(170, 202, 249, 0.1) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ========================================================================= */
+/* Slow-Motion Realistic Popup Animations for JCB Booking Confirmation       */
+/* ========================================================================= */
+@keyframes popupSlowMotionGlide {
+  0% {
+    transform: translateY(105%) scale(0.96);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes backdropSlowMotionFade {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+}
+
+@keyframes staggerFadeUp {
+  0% {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes goldShimmerSweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes enginePistonPulse {
+  0%, 100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes radarRingExpand {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes subtleFloatSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-popup-slow {
+  animation: popupSlowMotionGlide 1.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-backdrop-slow {
+  animation: backdropSlowMotionFade 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-stagger-1 {
+  animation: staggerFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.18s both;
+}
+
+.animate-stagger-2 {
+  animation: staggerFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both;
+}
+
+.animate-stagger-3 {
+  animation: staggerFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.52s both;
+}
+
+.animate-stagger-4 {
+  animation: staggerFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.68s both;
+}
+
+.animate-gold-shimmer {
+  background-size: 200% 100%;
+  animation: goldShimmerSweep 3.2s linear infinite;
+}
+
+.animate-slow-float {
+  animation: subtleFloatSlow 4s ease-in-out infinite;
+}
+
