@@ -307,11 +307,16 @@ export function LiveTrackingScreen({
       });
       leafletMapRef.current = map;
 
-      // Primary High-Reliability Road Layer: OpenStreetMap
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "© OpenStreetMap contributors",
-      }).addTo(map);
+      // Primary High-Reliability Road Layer: Stadia Maps (Alidade Smooth)
+      const stadiaKey = import.meta.env.VITE_STADIA_KEY || "abd1cf7c-c8ca-4b47-a786-de5a7d41aaa6";
+      L.tileLayer(
+        `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${stadiaKey}`,
+        {
+          maxZoom: 20,
+          attribution:
+            '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
+        }
+      ).addTo(map);
 
       // --- 1. Destination Site Pin ---
       const siteIcon = L.divIcon({

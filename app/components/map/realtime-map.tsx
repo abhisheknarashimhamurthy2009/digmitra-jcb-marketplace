@@ -350,7 +350,8 @@ export function RealtimeMap({
 
       leafletMapRef.current = map;
 
-      // Add OpenFreeMap Vector style or Satellite
+      // Add Stadia Maps Vector style or Satellite
+      const stadiaKey = import.meta.env.VITE_STADIA_KEY || "abd1cf7c-c8ca-4b47-a786-de5a7d41aaa6";
       if (mapStyle === "satellite") {
         L.tileLayer(
           "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -360,18 +361,18 @@ export function RealtimeMap({
         if (typeof L.maplibreGL === "function") {
           try {
             L.maplibreGL({
-              style: "https://tiles.openfreemap.org/styles/liberty",
+              style: `https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=${stadiaKey}`,
             }).addTo(map);
           } catch (e) {
-            L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-              maxZoom: 19,
-              subdomains: "abcd",
+            L.tileLayer(`https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${stadiaKey}`, {
+              maxZoom: 20,
+              attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
             }).addTo(map);
           }
         } else {
-          L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-            maxZoom: 19,
-            subdomains: "abcd",
+          L.tileLayer(`https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${stadiaKey}`, {
+            maxZoom: 20,
+            attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
           }).addTo(map);
         }
       }
