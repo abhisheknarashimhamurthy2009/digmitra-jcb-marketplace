@@ -34,6 +34,7 @@
     "@openrouter/ai-sdk-provider": "^2.9.1",
     "@react-router/dev": "8.1.0",
     "@react-router/fs-routes": "8.1.0",
+    "@supabase/supabase-js": "^2.117.2",
     "@tabler/icons-react": "^3.41.1",
     "ai": "6.0.258",
     "ai-sdk-ollama": "^3.8.8",
