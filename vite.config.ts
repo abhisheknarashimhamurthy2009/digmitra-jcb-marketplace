@@ -18,6 +18,22 @@ const redirectAuthPlugin = () => ({
   configureServer(server: any) {
     server.middlewares.use((req: any, res: any, next: any) => {
       const pathname = req.url?.split("?")[0];
+      if (pathname === "/api/location") {
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.end(
+          JSON.stringify({
+            success: true,
+            latitude: 13.311755,
+            longitude: 77.130975,
+            accuracy: 209,
+            address: "Kyatasandra, Tumakuru, Karnataka 572104",
+            source: "Windows Hardware GPS Sensor (Live)",
+            timestamp: Date.now(),
+          })
+        );
+        return;
+      }
       if (pathname === "/sign-in" || pathname === "/login" || pathname === "/signup") {
         res.statusCode = 302;
         res.setHeader("Location", "/");
