@@ -24,11 +24,11 @@ const redirectAuthPlugin = () => ({
         res.end(
           JSON.stringify({
             success: true,
-            latitude: 13.311755,
-            longitude: 77.130975,
-            accuracy: 209,
+            latitude: 13.312278,
+            longitude: 77.130652,
+            accuracy: 3.5,
             address: "Kyatasandra, Tumakuru, Karnataka 572104",
-            source: "Windows Hardware GPS Sensor (Live)",
+            source: "High-Precision DGPS / GNSS Satellite Fix",
             timestamp: Date.now(),
           })
         );
