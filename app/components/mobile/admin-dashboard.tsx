@@ -16,9 +16,10 @@ import {
   IconTruck,
   IconUsers,
 } from "@tabler/icons-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { AuthUser } from "@/components/auth/login-screen";
+import { supabase } from "@/lib/supabase";
 import type { AppTranslations, SupportedLanguage } from "@/lib/translations";
 
 interface AdminDashboardProps {
@@ -36,42 +37,38 @@ export function AdminDashboard({
 }: AdminDashboardProps) {
   const isKn = selectedLanguage === "kn";
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const dispatches = [
-    {
-      id: "JCB-4821",
-      customer: "Ramesh Gowda",
-      phone: "+91 94480 22331",
-      operator: "Manjunath K. (JCB 3DX)",
-      location: "Kyatasandra, Tumakuru",
-      service: "Plot & Weed Clearing",
-      status: "en_route",
-      amount: 2850,
-      time: "10 mins ago",
-    },
-    {
-      id: "JCB-4819",
-      customer: "Anand Murthy",
-      phone: "+91 98450 66112",
-      operator: "Shivanna R. (JCB 4DX)",
-      location: "Rajajinagar, Bengaluru",
-      service: "Debris & Rubble Extraction",
-      status: "in_progress",
-      amount: 5400,
-      time: "1.5h in progress",
-    },
-    {
-      id: "JCB-4815",
-      customer: "Vikram Reddy",
-      phone: "+91 99001 88443",
-      operator: "Raghavendra (Mini Excavator)",
-      location: "Whitefield, Bengaluru",
-      service: "Site Leveling & Grading",
-      status: "completed",
-      amount: 4375,
-      time: "Completed at 11:30 AM",
-    },
-  ];
+  const fetchCloudData = async () => {
+    setLoading(true);
+    try {
+      const [bookingsRes, vehiclesRes] = await Promise.all([
+        supabase.from("bookings").select("*").order("created_at", { ascending: false }),
+        supabase.from("vehicles").select("*").order("created_at", { ascending: false }),
+      ]);
+      setBookings(bookingsRes.data || []);
+      setVehicles(vehiclesRes.data || []);
+    } catch (err) {
+      console.warn("Error fetching admin cloud data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCloudData();
+  }, []);
+
+  const totalGmv = bookings.reduce((sum, b) => sum + (Number(b.total_estimate) || 0), 0);
+  const activeJcbsCount = vehicles.filter((v) => v.status === "available" || v.status === "working").length;
+
+  const filteredBookings = bookings.filter((b) => {
+    if (filter === "active") return b.job_status !== "completed" && b.job_status !== "cancelled";
+    if (filter === "completed") return b.job_status === "completed";
+    return true;
+  });
 
   return (
     <div className="space-y-4 pb-24 select-none">
@@ -108,7 +105,7 @@ export function AdminDashboard({
               {isKn ? "ಸಕ್ರಿಯ JCBಗಳು" : "Active JCBs"}
             </span>
             <span className="text-base font-black text-[#ffb400]">
-              14 Units
+              {activeJcbsCount} Units
             </span>
           </div>
           <div className="border-x border-white/10">
@@ -116,7 +113,7 @@ export function AdminDashboard({
               {isKn ? "ಇಂದಿನ ಬುಕಿಂಗ್‌ಗಳು" : "Today's Jobs"}
             </span>
             <span className="text-base font-black text-white">
-              28 Orders
+              {bookings.length} Orders
             </span>
           </div>
           <div>
@@ -124,7 +121,7 @@ export function AdminDashboard({
               {isKn ? "ಒಟ್ಟು ಮೊತ್ತ" : "Day GMV"}
             </span>
             <span className="text-base font-black text-emerald-400">
-              ₹1.24L
+              ₹{totalGmv.toLocaleString()}
             </span>
           </div>
         </div>
@@ -155,54 +152,70 @@ export function AdminDashboard({
         </div>
 
         <div className="space-y-2">
-          {dispatches.map((job) => (
-            <div
-              key={job.id}
-              className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-2"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-xs font-black text-[#0b3d91]">
-                      {job.id}
+          {filteredBookings.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center space-y-2">
+              <div className="size-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                <IconTruck size={24} />
+              </div>
+              <h4 className="text-sm font-black text-slate-800">
+                {isKn ? "ಯಾವುದೇ ಸಕ್ರಿಯ ಬುಕಿಂಗ್‌ಗಳಿಲ್ಲ" : "No Dispatches in System"}
+              </h4>
+              <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                {isKn
+                  ? "ಗ್ರಾಹಕರು ಬುಕಿಂಗ್ ಮಾಡಿದ ನಂತರ ಲೈವ್ ಬುಕಿಂಗ್‌ಗಳು ಇಲ್ಲಿ ನೈಜ ಸಮಯದಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ."
+                  : "When customers book JCBs, real-time live dispatches and orders will appear here directly from Supabase."}
+              </p>
+            </div>
+          ) : (
+            filteredBookings.map((job) => (
+              <div
+                key={job.id}
+                className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-2"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-xs font-black text-[#0b3d91]">
+                        #{job.booking_ref}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${
+                          job.job_status === "in_progress"
+                            ? "bg-amber-100 text-amber-800"
+                            : job.job_status === "confirmed"
+                              ? "bg-blue-100 text-[#0b3d91]"
+                              : "bg-emerald-100 text-emerald-800"
+                        }`}
+                      >
+                        {(job.job_status || "confirmed").replace("_", " ")}
+                      </span>
+                    </div>
+                    <h4 className="mt-1 text-xs font-black text-slate-900">
+                      {job.work_type || "Site Cleaning"}
+                    </h4>
+                    <p className="text-[11px] text-slate-600 flex items-center gap-1 mt-0.5">
+                      <IconMapPin size={12} className="text-[#0b3d91]" />
+                      {job.site_address}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-sm font-black text-slate-900">
+                      ₹{job.total_estimate}
                     </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${
-                        job.status === "in_progress"
-                          ? "bg-amber-100 text-amber-800"
-                          : job.status === "en_route"
-                            ? "bg-blue-100 text-[#0b3d91]"
-                            : "bg-emerald-100 text-emerald-800"
-                      }`}
-                    >
-                      {job.status.replace("_", " ")}
+                    <span className="block text-[9px] text-slate-400">
+                      {new Date(job.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
-                  <h4 className="mt-1 text-xs font-black text-slate-900">
-                    {job.service}
-                  </h4>
-                  <p className="text-[11px] text-slate-600 flex items-center gap-1 mt-0.5">
-                    <IconMapPin size={12} className="text-[#0b3d91]" />
-                    {job.location}
-                  </p>
                 </div>
 
-                <div className="text-right">
-                  <span className="text-sm font-black text-slate-900">
-                    ₹{job.amount}
-                  </span>
-                  <span className="block text-[9px] text-slate-400">
-                    {job.time}
-                  </span>
+                <div className="flex items-center justify-between rounded-xl bg-slate-50 p-2 text-[11px] font-bold text-slate-700 border border-slate-100">
+                  <span className="truncate">🚜 {job.selected_jcb_type}</span>
+                  <span className="text-[#0b3d91] truncate font-mono">👤 {job.customer_name} ({job.customer_phone})</span>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 p-2 text-[11px] font-bold text-slate-700 border border-slate-100">
-                <span className="truncate">🚜 {job.operator}</span>
-                <span className="text-[#0b3d91] truncate font-mono">👤 {job.customer}</span>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 

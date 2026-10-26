@@ -38,6 +38,11 @@ import type { AuthUser } from "@/components/auth/login-screen";
 import type { AppTranslations, SupportedLanguage } from "@/lib/translations";
 import { playNotificationSound } from "@/components/notifications/notification-center";
 import { LiveCameraModal } from "@/components/booking/live-camera-modal";
+import {
+  uploadCloudPhoto,
+  saveVehicleToOnlineDb,
+  fetchVehiclesFromOnlineDb,
+} from "@/lib/supabase";
 
 interface OwnerDashboardProps {
   user: AuthUser;
@@ -72,81 +77,8 @@ export interface WorkingJcbItem {
   locationDescKn: string;
 }
 
-// Initial working fleet in Tumakuru / Kyatasandra area with rich details
-const INITIAL_FLEET: WorkingJcbItem[] = [
-  {
-    id: "jcb-1",
-    plate: "KA-06-EA-4521",
-    name: "JCB 3DX Super EcoX",
-    type: "Backhoe Loader (1.0 m³ shovel)",
-    status: "working",
-    operatorName: "Manjunath Gowda",
-    operatorPhone: "+91 98450 12345",
-    hoursToday: 4.8,
-    fuelPct: 74,
-    ratePerHour: 950,
-    driverBata: 200,
-    minPayment: 0,
-    driverExperienceYears: 7,
-    insuranceEndDate: "2026-12-31",
-    insuranceDocName: "National_Insurance_4521.pdf",
-    vehicleImages: [
-      "https://images.unsplash.com/photo-1579294800821-69fc850844bc?auto=format&fit=crop&w=500&q=80",
-    ],
-    lat: 13.3145,
-    lng: 77.132,
-    locationDesc: "Kyatasandra Layout (Active Job)",
-    locationDescKn: "ಕ್ಯಾತಸಂದ್ರ ಬಡಾವಣೆ (ಕೆಲಸ ನಡೆಯುತ್ತಿದೆ)",
-  },
-  {
-    id: "jcb-2",
-    plate: "KA-06-MB-1122",
-    name: "JCB 4DX Heavy Duty",
-    type: "Heavy Excavator (Reinforced boom)",
-    status: "en_route",
-    operatorName: "Ramesh Kumar",
-    operatorPhone: "+91 98450 98765",
-    hoursToday: 2.2,
-    fuelPct: 88,
-    ratePerHour: 1100,
-    driverBata: 250,
-    minPayment: 500,
-    driverExperienceYears: 5,
-    insuranceEndDate: "2026-11-15",
-    insuranceDocName: "Bajaj_Allianz_Policy.pdf",
-    vehicleImages: [
-      "https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?auto=format&fit=crop&w=500&q=80",
-    ],
-    lat: 13.308,
-    lng: 77.136,
-    locationDesc: "Siddaganga Math Rd (En Route)",
-    locationDescKn: "ಸಿದ್ಧಗಂಗಾ ಮಠ ರಸ್ತೆ (ಮಾರ್ಗದಲ್ಲಿದೆ)",
-  },
-  {
-    id: "jcb-3",
-    plate: "KA-06-C-9901",
-    name: "Mini Excavator (3 Ton)",
-    type: "Compact Excavator (Zero tail-swing)",
-    status: "idle",
-    operatorName: "Suresh Patil",
-    operatorPhone: "+91 98450 54321",
-    hoursToday: 0,
-    fuelPct: 96,
-    ratePerHour: 1250,
-    driverBata: 150,
-    minPayment: 0,
-    driverExperienceYears: 4,
-    insuranceEndDate: "2027-04-20",
-    insuranceDocName: "HDFC_Ergo_General.pdf",
-    vehicleImages: [
-      "https://images.unsplash.com/photo-1541888946425-d0fbb1861564?auto=format&fit=crop&w=500&q=80",
-    ],
-    lat: 13.319,
-    lng: 77.125,
-    locationDesc: "Batawadi Stand (Ready to Book)",
-    locationDescKn: "ಬಟವಾಡಿ ನಿಲ್ದಾಣ (ಬುಕಿಂಗ್‌ಗೆ ಲಭ್ಯ)",
-  },
-];
+// Initial fleet starts 100% empty - populated strictly from Supabase cloud database
+const INITIAL_FLEET: WorkingJcbItem[] = [];
 
 function loadScript(src: string, id: string): Promise<void> {
   return new Promise((resolve) => {
@@ -187,6 +119,41 @@ export function OwnerDashboard({
 
   // Fleet state
   const [fleet, setFleet] = useState<WorkingJcbItem[]>(INITIAL_FLEET);
+
+  // Fetch registered vehicles live from online Supabase cloud database
+  useEffect(() => {
+    fetchVehiclesFromOnlineDb().then((vehicles) => {
+      if (vehicles && vehicles.length > 0) {
+        const mapped: WorkingJcbItem[] = vehicles.map((v) => ({
+          id: v.id,
+          plate: v.plate_number,
+          name: v.vehicle_type,
+          type: v.category,
+          status: v.status || "idle",
+          operatorName: v.operator_name,
+          operatorPhone: v.operator_phone,
+          hoursToday: 0,
+          fuelPct: 100,
+          ratePerHour: Number(v.rate_per_hour),
+          driverBata: Number(v.driver_bata),
+          minPayment: Number(v.min_payment),
+          driverExperienceYears: Number(v.driver_experience_years),
+          insuranceEndDate: v.insurance_end_date,
+          insuranceDocUrl: v.insurance_doc_url,
+          vehicleImages: v.vehicle_images || [],
+          lat: v.current_lat || 13.3151,
+          lng: v.current_lng || 77.1338,
+          locationDesc: "Tumakuru Hub (Live Online)",
+          locationDescKn: "ತುಮಕೂರು ಕೇಂದ್ರ (ಲೈವ್ ಆನ್‌ಲೈನ್)",
+        }));
+        setFleet((prev) => {
+          const onlinePlates = new Set(mapped.map((m) => m.plate));
+          const filteredInit = prev.filter((p) => !onlinePlates.has(p.plate));
+          return [...mapped, ...filteredInit];
+        });
+      }
+    });
+  }, []);
 
   // Map state
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -316,34 +283,7 @@ export function OwnerDashboard({
         streetLayer.addTo(map);
       }
 
-      // Add Active Customer Site Pin (Kyatasandra Layout)
-      const siteIcon = L.divIcon({
-        className: "owner-site-pin",
-        html: `
-          <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
-            <div style="position: absolute; top: -6px; width: 44px; height: 44px; background: rgba(16, 185, 129, 0.35); border-radius: 50%; animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-            <div style="background: #0f172a; color: #ffffff; border: 2px solid #10b981; padding: 4px 8px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 4px; font-weight: 800; font-size: 11px; white-space: nowrap; z-index: 10;">
-              <span>📍</span>
-              <span>JOB-4821 • Ramesh Gowda (30×40)</span>
-            </div>
-            <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid #0f172a; margin-top: -1px;"></div>
-          </div>
-        `,
-        iconSize: [210, 42],
-        iconAnchor: [105, 38],
-      });
-
-      const siteMarker = L.marker([13.3142, 77.1325], { icon: siteIcon }).addTo(map);
-      siteMarker.bindPopup(
-        `<div style="font-family: sans-serif; font-size: 12px; padding: 4px;">
-          <b>Customer:</b> Ramesh Gowda<br/>
-          <b>Site:</b> Kyatasandra Layout, 30×40 ft<br/>
-          <b>Task:</b> Plot & Weed Cleaning<br/>
-          <b>Machine:</b> KA-06-EA-4521 (Working Live)
-        </div>`
-      );
-
-      // Render Fleet Markers
+      // Render Fleet Markers if any registered
       fleet.forEach((item) => {
         const isWorking = item.status === "working";
         const isEnRoute = item.status === "en_route";
@@ -432,13 +372,19 @@ export function OwnerDashboard({
     });
   };
 
-  // Handle Vehicle Photos Upload (Multiple files from disk or camera)
-  const handleVehiclePhotosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Vehicle Photos Upload (Uploads directly to Supabase cloud storage bucket)
+  const handleVehiclePhotosChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const urls = files.map((f) => URL.createObjectURL(f));
-    setVehiclePhotos((prev) => [...prev, ...urls]);
+    try {
+      const uploadPromises = files.map((f) => uploadCloudPhoto(f, "vehicle-photos"));
+      const urls = await Promise.all(uploadPromises);
+      setVehiclePhotos((prev) => [...prev, ...urls]);
+    } catch {
+      const urls = files.map((f) => URL.createObjectURL(f));
+      setVehiclePhotos((prev) => [...prev, ...urls]);
+    }
   };
 
   const handleRemovePhoto = (index: number) => {
@@ -464,7 +410,7 @@ export function OwnerDashboard({
       type: `${regForm.category} (${regForm.modelYear})`,
       status: "idle",
       operatorName: regForm.operatorName.trim(),
-      operatorPhone: regForm.operatorPhone.trim() || "+91 98450 00000",
+      operatorPhone: regForm.operatorPhone.trim(),
       hoursToday: 0,
       fuelPct: 100,
       ratePerHour: Number(regForm.ratePerHour) || 950,
@@ -484,6 +430,25 @@ export function OwnerDashboard({
     };
 
     setFleet((prev) => [newJcb, ...prev]);
+
+    // Save vehicle 100% online in Supabase cloud database
+    saveVehicleToOnlineDb({
+      plateNumber: newJcb.plate,
+      vehicleType: newJcb.name,
+      category: regForm.category,
+      operatorName: newJcb.operatorName,
+      operatorPhone: newJcb.operatorPhone,
+      ratePerHour: newJcb.ratePerHour,
+      driverBata: newJcb.driverBata,
+      minPayment: newJcb.minPayment,
+      driverExperienceYears: newJcb.driverExperienceYears,
+      insuranceEndDate: newJcb.insuranceEndDate,
+      insuranceDocUrl: newJcb.insuranceDocUrl,
+      vehicleImages: newJcb.vehicleImages,
+      currentLat: newJcb.lat,
+      currentLng: newJcb.lng,
+    }).catch((err) => console.error("Cloud vehicle save error:", err));
+
     playNotificationSound();
 
     // Trigger in-app notification bell event
@@ -1050,7 +1015,7 @@ export function OwnerDashboard({
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Anand Gowda"
+                    placeholder={isKn ? "ಚಾಲಕರ ಪೂರ್ಣ ಹೆಸರು" : "Driver Full Name"}
                     value={regForm.operatorName}
                     onChange={(e) => setRegForm({ ...regForm, operatorName: e.target.value })}
                     className="w-full rounded-xl border border-slate-300 bg-slate-50/70 p-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:border-[#0b3d91]"
@@ -1062,7 +1027,7 @@ export function OwnerDashboard({
                   </label>
                   <input
                     type="tel"
-                    placeholder="e.g. 9845011223"
+                    placeholder="10-digit mobile number"
                     value={regForm.operatorPhone}
                     onChange={(e) => setRegForm({ ...regForm, operatorPhone: e.target.value })}
                     className="w-full rounded-xl border border-slate-300 bg-slate-50/70 p-2.5 text-xs font-bold text-slate-900 focus:bg-white focus:border-[#0b3d91]"
@@ -1141,8 +1106,8 @@ export function OwnerDashboard({
                   <span className="text-xs font-black tracking-tight text-slate-800">
                     {activeTab === "live_work"
                       ? isKn
-                        ? "ಲೈವ್ ಕೆಲಸದ ಸ್ಥಿತಿ • JOB-4821"
-                        : "Live Work Status • JOB-4821"
+                        ? "ಲೈವ್ ಕೆಲಸದ ಸ್ಥಿತಿ"
+                        : "Live Work Status"
                       : isKn
                         ? "ಕಾರ್ಯನಿರತ JCB ಗಳ ಪಟ್ಟಿ"
                         : "Working JCB Fleet"}
@@ -1162,138 +1127,18 @@ export function OwnerDashboard({
                   {/* ----------------------------------------------------------------- */}
                   {activeTab === "live_work" && (
                     <div className="space-y-3">
-                      {/* Machine & Driver Summary Pill */}
-                      <div className="flex items-center justify-between rounded-2xl bg-amber-50 border border-amber-200/80 p-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex size-10 items-center justify-center rounded-xl bg-[#ffb400] text-slate-950 font-black shadow-sm">
-                            <IconTruck size={22} stroke={2.5} />
-                          </div>
-                          <div>
-                            <p className="text-xs font-black text-slate-900 leading-tight">
-                              JCB 3DX Super EcoX
-                            </p>
-                            <p className="text-[11px] font-bold text-amber-900/80 font-mono">
-                              KA-06-EA-4521 • Manjunath (7 yrs exp)
-                            </p>
-                          </div>
+                      <div className="flex flex-col items-center justify-center p-8 rounded-3xl border-2 border-dashed border-slate-300 bg-slate-50 text-center space-y-2">
+                        <div className="flex size-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-800 text-2xl shadow-xs">
+                          <IconClock size={28} />
                         </div>
-                        <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-black text-white shadow-sm flex items-center gap-1">
-                          <span className="size-1.5 rounded-full bg-white animate-pulse" />
-                          {isKn ? "ಚಾಲನೆಯಲ್ಲಿದೆ" : "LIVE"}
-                        </span>
-                      </div>
-
-                      {/* Live Digital Hour Meter Counter */}
-                      <div className="rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 text-white shadow-md border border-slate-800">
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
-                            <IconClock size={16} />
-                            <span>{isKn ? "ಡಿಜಿಟಲ್ ಗಂಟೆ ಮೀಟರ್" : "Digital Hour Meter"}</span>
-                          </div>
-                          <span className="rounded-md bg-emerald-950/80 border border-emerald-500/40 px-2 py-0.5 font-mono text-[10px] font-black text-emerald-400">
-                            {timerRunning ? (isKn ? "● ರನ್ನಿಂಗ್" : "● RUNNING") : (isKn ? "⏸ ವಿರಾಮ" : "⏸ PAUSED")}
-                          </span>
-                        </div>
-
-                        <div className="py-3 text-center">
-                          <div className="font-mono text-3xl sm:text-4xl font-black tracking-widest text-[#ffb400] drop-shadow-[0_2px_10px_rgba(255,180,0,0.3)]">
-                            {formatTimer(timerSeconds)}
-                          </div>
-                          <p className="mt-1 text-[11px] font-medium text-slate-400">
-                            {isKn ? "ಸೈಟ್ ಕೆಲಸದ ನೈಜ ಸಮಯದ ದಾಖಲೆ" : "Real-time Site Work Duration"}
-                          </p>
-                        </div>
-
-                        {/* Live Metrics Grid */}
-                        <div className="grid grid-cols-2 gap-2 border-t border-slate-800 pt-2.5 text-center">
-                          <div className="rounded-xl bg-slate-900/90 p-2 border border-slate-800">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                              {isKn ? "ಗಳಿಕೆ (₹950/ಗಂಟೆ)" : "Live Earned (₹950/h)"}
-                            </p>
-                            <p className="font-mono text-base font-black text-emerald-400">
-                              ₹{liveEarnings.toLocaleString("en-IN")}
-                            </p>
-                          </div>
-                          <div className="rounded-xl bg-slate-900/90 p-2 border border-slate-800">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                              {isKn ? "ಡೀಸೆಲ್ ಬಳಕೆ (ಅಂದಾಜು)" : "Diesel Used (Est.)"}
-                            </p>
-                            <p className="font-mono text-base font-black text-amber-400">
-                              {liveDieselUsed} Liters
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Timer Control Buttons */}
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTimerRunning(!timerRunning);
-                              playNotificationSound();
-                            }}
-                            className={`flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-black transition active:scale-95 shadow-sm ${
-                              timerRunning
-                                ? "bg-amber-500 text-slate-950 hover:bg-amber-400"
-                                : "bg-emerald-600 text-white hover:bg-emerald-500"
-                            }`}
-                          >
-                            {timerRunning ? (
-                              <>
-                                <IconPlayerPause size={15} />
-                                <span>{isKn ? "ಮೀಟರ್ ವಿರಾಮಗೊಳಿಸಿ" : "Pause Work"}</span>
-                              </>
-                            ) : (
-                              <>
-                                <IconPlayerPlay size={15} />
-                                <span>{isKn ? "ಕೆಲಸ ಮುಂದುವರಿಸಿ" : "Resume Work"}</span>
-                              </>
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setWorkCompleted(true);
-                              setTimerRunning(false);
-                              alert(
-                                isKn
-                                  ? `ಕೆಲಸ ಮುಕ್ತಾಯಗೊಂಡಿದೆ! ಒಟ್ಟು ಮೊತ್ತ: ₹${liveEarnings}. ಇನ್‌ವಾಯ್ಸ್ ಗ್ರಾಹಕರಿಗೆ ಕಳುಹಿಸಲಾಗಿದೆ.`
-                                  : `Work marked complete! Total Amount: ₹${liveEarnings}. Invoice dispatched to client.`
-                              );
-                            }}
-                            className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 py-2 text-xs font-black text-white transition active:scale-95"
-                          >
-                            <IconCheck size={15} />
-                            <span>{isKn ? "ಕೆಲಸ ಮುಕ್ತಾಯ" : "End Work"}</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Active Job Client & Location Details */}
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-2">
-                        <div className="flex items-center justify-between text-xs font-black text-slate-900">
-                          <span>{isKn ? "ಗ್ರಾಹಕರ ವಿವರಗಳು" : "Client & Site Info"}</span>
-                          <span className="font-mono text-[11px] text-[#0b3d91]">ID: #JOB-4821</span>
-                        </div>
-                        <div className="text-xs space-y-1 text-slate-700">
-                          <p className="font-bold text-slate-900 flex items-center justify-between">
-                            <span>👤 Ramesh Gowda</span>
-                            <a
-                              href="tel:+919448022331"
-                              className="flex items-center gap-1 text-[#0b3d91] font-bold text-xs bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-xs"
-                            >
-                              <IconPhone size={12} />
-                              +91 94480 22331
-                            </a>
-                          </p>
-                          <p className="flex items-center gap-1 text-slate-600 text-[11px]">
-                            <IconMapPin size={13} className="text-red-500 shrink-0" />
-                            <span>14th Cross, Kyatasandra Layout, Tumakuru</span>
-                          </p>
-                          <p className="text-[11px] text-slate-600 font-medium">
-                            🌱 <b>{isKn ? "ಕೆಲಸ:" : "Task:"}</b> Plot Cleaning, Weed Bush Clearing & Leveling (30 × 40 ft)
-                          </p>
-                        </div>
+                        <h4 className="text-sm font-black text-slate-800">
+                          {isKn ? "ಯಾವುದೇ ಸಕ್ರಿಯ ಕೆಲಸ ನಡೆಯುತ್ತಿಲ್ಲ" : "No Active Work in Progress"}
+                        </h4>
+                        <p className="max-w-xs text-xs text-slate-500 font-medium leading-relaxed">
+                          {isKn
+                            ? "ಗ್ರಾಹಕರು ನಿಮ್ಮ ಜೆಸಿಬಿಯನ್ನು ಬುಕ್ ಮಾಡಿದಾಗ ನೈಜ ಸಮಯದ ಡಿಜಿಟಲ್ ಗಂಟೆ ಮೀಟರ್ ಮತ್ತು ಕೆಲಸದ ಮಾಹಿತಿ ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ."
+                            : "When a customer books one of your machines, live digital hour meter and site info will display here automatically."}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -1312,7 +1157,7 @@ export function OwnerDashboard({
                           onClick={() => {
                             setActiveTab("new_vehicle");
                           }}
-                          className="flex items-center gap-1 rounded-xl bg-[#0b3d91] px-2.5 py-1 text-[11px] font-black text-white shadow-xs hover:bg-[#082d6e] transition"
+                          className="flex items-center gap-1 rounded-xl bg-[#0b3d91] px-2.5 py-1 text-[11px] font-black text-white shadow-xs hover:bg-[#082d6e] transition cursor-pointer"
                         >
                           <IconPlus size={13} />
                           <span>{isKn ? "ಹೊಸ ವಾಹನ ಸೇರಿಸಿ" : "+ Register JCB"}</span>
@@ -1320,8 +1165,31 @@ export function OwnerDashboard({
                       </div>
 
                       {/* Fleet List */}
-                      <div className="space-y-2.5">
-                        {fleet.map((item) => {
+                      {fleet.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-8 rounded-3xl border-2 border-dashed border-slate-300 bg-slate-50 text-center space-y-2">
+                          <div className="flex size-14 items-center justify-center rounded-2xl bg-blue-100 text-[#0b3d91] text-2xl shadow-xs">
+                            🚜
+                          </div>
+                          <h4 className="text-sm font-black text-slate-800">
+                            {isKn ? "ಯಾವುದೇ ವಾಹನಗಳು ನೋಂದಣಿಯಾಗಿಲ್ಲ" : "No Vehicles in Fleet"}
+                          </h4>
+                          <p className="max-w-xs text-xs text-slate-500 font-medium leading-relaxed">
+                            {isKn
+                              ? "ನಿಮ್ಮ ಮೊದಲ ಜೆಸಿಬಿ ಅಥವಾ ಟಿಪ್ಪರ್ ಅನ್ನು ನೋಂದಾಯಿಸಿ ಲೈವ್ ನಕ್ಷೆಯಲ್ಲಿ ಸಕ್ರಿಯಗೊಳಿಸಿ."
+                              : "Register your first JCB, Excavator, or Tipper to activate it on the live customer map."}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab("new_vehicle")}
+                            className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-[#0b3d91] hover:bg-blue-900 text-white px-4 py-2.5 text-xs font-black shadow-md transition active:scale-95 cursor-pointer"
+                          >
+                            <IconPlus size={16} />
+                            <span>{isKn ? "ಹೊಸ ವಾಹನ ಸೇರಿಸಿ" : "Register Vehicle"}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {fleet.map((item) => {
                           const isWorking = item.status === "working";
                           const isEnRoute = item.status === "en_route";
                           return (
@@ -1437,8 +1305,9 @@ export function OwnerDashboard({
                           );
                         })}
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                )}
                 </div>
               )}
             </div>

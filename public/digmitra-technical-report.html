@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DigMitra PRO — Complete In-Depth Project & Technical Architecture Report</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 12mm 14mm 12mm 14mm;
+    }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      line-height: 1.55;
+      font-size: 12.5px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .no-print-bar {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 3px solid #ffb400;
+    }
+    .no-print-bar a, .no-print-bar button {
+      background: #ffb400;
+      color: #0f172a;
+      font-weight: 900;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-left: 8px;
+      display: inline-block;
+    }
+    @media print {
+      .no-print-bar {
+        display: none !important;
+      }
+    }
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 16px 0;
+    }
+    .hero-banner {
+      background: linear-gradient(135deg, #0b3d91 0%, #124ea3 60%, #07255c 100%);
+      color: #ffffff;
+      padding: 26px 28px;
+      border-radius: 14px;
+      margin-bottom: 20px;
+      border-bottom: 5px solid #ffb400;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .hero-title h1 {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.4px;
+      color: #ffffff;
+    }
+    .hero-title .subtitle {
+      font-size: 13.5px;
+      color: #ffcf5a;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .hero-title .desc {
+      font-size: 11.5px;
+      color: #e2e8f0;
+      margin-top: 8px;
+      max-width: 620px;
+    }
+    .hero-badge {
+      background: #ffb400;
+      color: #0b3d91;
+      font-weight: 900;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .meta-card {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-left: 4px solid #0b3d91;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .meta-label {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      font-weight: 800;
+      color: #64748b;
+      letter-spacing: 0.5px;
+    }
+    .meta-value {
+      font-size: 12.5px;
+      font-weight: 900;
+      color: #0f172a;
+      margin-top: 2px;
+    }
+    .section {
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      margin-bottom: 18px;
+      overflow: hidden;
+      background: #ffffff;
+      page-break-inside: avoid;
+    }
+    .section-break {
+      page-break-inside: auto;
+    }
+    .section-header {
+      background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%);
+      color: #ffffff;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #ffb400;
+    }
+    .section-header h2 {
+      font-size: 14px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+    }
+    .section-tag {
+      background: #ffb400;
+      color: #0f172a;
+      font-size: 10px;
+      font-weight: 900;
+      padding: 2px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+    .section-body {
+      padding: 14px 16px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      margin-bottom: 6px;
+      font-size: 11.5px;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 7px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 900;
+      color: #0f172a;
+      text-transform: uppercase;
+      font-size: 10.5px;
+      letter-spacing: 0.3px;
+    }
+    tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+    code, .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+      background: #f1f5f9;
+      color: #0b3d91;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      word-break: break-all;
+    }
+    .code-block {
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 11px;
+      line-height: 1.5;
+      margin: 8px 0;
+      overflow-x: auto;
+      word-break: break-all;
+      border-left: 4px solid #ffb400;
+    }
+    .code-block .key {
+      color: #ffcf5a;
+      font-weight: 800;
+    }
+    .code-block .val {
+      color: #38bdf8;
+    }
+    .code-block .comment {
+      color: #94a3b8;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .feature-box {
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .feature-box h3 {
+      font-size: 12.5px;
+      font-weight: 900;
+      color: #0b3d91;
+      margin-bottom: 4px;
+    }
+    .feature-box ul {
+      padding-left: 16px;
+      font-size: 11.5px;
+      color: #334155;
+    }
+    .feature-box li {
+      margin-bottom: 3px;
+    }
+    .badge-green {
+      background: #dcfce7;
+      color: #166534;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      display: inline-block;
+    }
+    .badge-blue {
+      background: #dbeafe;
+      color: #1e40af;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      display: inline-block;
+    }
+    .badge-amber {
+      background: #fef3c7;
+      color: #92400e;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      display: inline-block;
+    }
+    .flow-step {
+      display: flex;
+      gap: 12px;
+      padding: 9px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      background: #f8fafc;
+      align-items: flex-start;
+    }
+    .flow-num {
+      background: #0b3d91;
+      color: #ffb400;
+      font-weight: 900;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .flow-content h4 {
+      font-size: 12.5px;
+      font-weight: 900;
+      color: #0f172a;
+    }
+    .flow-content p {
+      font-size: 11.5px;
+      color: #334155;
+      margin-top: 2px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 11px;
+      color: #64748b;
+      padding: 12px 0;
+      border-top: 1px solid #e2e8f0;
+      margin-top: 14px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="no-print-bar">
+    <div>
+      <strong>DigMitra PRO — Complete Technical & Architecture Report</strong>
+    </div>
+    <div>
+      <a href="/DIGMITRA-PROJECT-TECHNICAL-REPORT.pdf" download="DIGMITRA-PROJECT-TECHNICAL-REPORT.pdf">⬇ Download PDF File</a>
+      <button onclick="window.print()">🖨 Print / Save as PDF</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- HERO BANNER -->
+    <div class="hero-banner">
+      <div class="hero-title">
+        <h1>DigMitra PRO — Technical & Architecture Report</h1>
+        <div class="subtitle">JCB Site Cleaning, Plot Leveling & Debris Extraction Marketplace Application</div>
+        <div class="desc">
+          Complete engineering documentation covering programming languages, frontend/backend frameworks, geospatial mapping engines, API keys, cloud database credentials, consumer booking workflow, and codebase structure.
+        </div>
+      </div>
+      <div class="hero-badge">
+        VERSION 2.0 PRO<br />
+        <span style="font-size: 9.5px; font-weight: 800;">PRODUCTION READY</span>
+      </div>
+    </div>
+
+    <!-- QUICK METADATA -->
+    <div class="meta-grid">
+      <div class="meta-card">
+        <div class="meta-label">Primary Language</div>
+        <div class="meta-value">TypeScript 7.0 (TSX/TS)</div>
+      </div>
+      <div class="meta-card">
+        <div class="meta-label">App Framework</div>
+        <div class="meta-value">React 19 + React Router 8</div>
+      </div>
+      <div class="meta-card">
+        <div class="meta-label">Cloud Database</div>
+        <div class="meta-value">Supabase PostgreSQL</div>
+      </div>
+      <div class="meta-card">
+        <div class="meta-label">Local / Network Port</div>
+        <div class="meta-value">Port 5050 (Vite 8 SSR)</div>
+      </div>
+    </div>
+
+    <!-- SECTION 1: EXECUTIVE OVERVIEW -->
+    <div class="section">
+      <div class="section-header">
+        <h2>1. Project Overview & Commercial Vision</h2>
+        <span class="section-tag">Product Architecture</span>
+      </div>
+      <div class="section-body">
+        <p style="margin-bottom: 10px;">
+          <strong>DigMitra PRO</strong> is a mobile-first, real-time heavy-machinery booking marketplace designed to bridge the gap between property owners/citizens and verified JCB/Excavator/Tipper Truck operators. Similar to how Uber/Rapido revolutionized passenger transport, DigMitra enables any citizen to pinpoint their plot via live hardware GPS, inspect nearby available JCBs, upload site photos, choose a payment mode, pay a nominal ₹500 token advance, and track their dispatched JCB live on a turn-by-turn map.
+        </p>
+        <div class="grid-2">
+          <div class="feature-box">
+            <h3>Target Market & Use Cases</h3>
+            <ul>
+              <li><strong>Plot Clearing & Bush Removal</strong> (30×40 ft, 40×60 ft, 60×40 ft residential/commercial sites)</li>
+              <li><strong>Construction Debris Extraction</strong> (JCB Backhoe + Tractor Tipper haulage combos)</li>
+              <li><strong>Foundation Trenching & Site Leveling</strong></li>
+              <li><strong>Primary Hub</strong>: Kyatasandra, Tumakuru & Bengaluru, Karnataka</li>
+            </ul>
+          </div>
+          <div class="feature-box">
+            <h3>Multi-Role & Bilingual Capabilities</h3>
+            <ul>
+              <li><strong>3 User Roles</strong>: Client/Consumer, JCB Fleet Owner, and Marketplace Admin</li>
+              <li><strong>Bilingual UI</strong>: Instant 1-tap switch between <strong>English</strong> and <strong>Kannada (ಕನ್ನಡ)</strong></li>
+              <li><strong>Anti-Fraud Token Model</strong>: ₹500 advance online lock + remaining balance via Cash on Spot or Online</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: PROGRAMMING LANGUAGES USED -->
+    <div class="section">
+      <div class="section-header">
+        <h2>2. Programming Languages Used</h2>
+        <span class="section-tag">Languages</span>
+      </div>
+      <div class="section-body">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 22%;">Language</th>
+              <th style="width: 18%;">Version / Dialect</th>
+              <th style="width: 18%;">Codebase Share</th>
+              <th>Where & How It Is Used in DigMitra</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>TypeScript</strong> (<code>.tsx</code>, <code>.ts</code>)</td>
+              <td>TypeScript <code>^7.0.2</code></td>
+              <td><span class="badge-blue">~92% Primary</span></td>
+              <td>All React UI screens, interactive map components, state stores, booking workflows, translation dictionaries, Vite server configuration, and database migration scripts.</td>
+            </tr>
+            <tr>
+              <td><strong>JavaScript</strong> (<code>.js</code>, <code>.mjs</code>)</td>
+              <td>ES2022+ / Node ESM</td>
+              <td><span class="badge-amber">~4% Runtime</span></td>
+              <td>Node.js server runtime (`>=22.22.0`), Leaflet/MapLibre browser scripts, and client-side storage/theme initialization scripts.</td>
+            </tr>
+            <tr>
+              <td><strong>SQL</strong> (PostgreSQL)</td>
+              <td>PostgreSQL 15 / 16</td>
+              <td><span class="badge-green">~2% Data Layer</span></td>
+              <td>Supabase cloud relational database tables (<code>vehicles</code>, <code>bookings</code>, <code>live_tracking</code>), Drizzle ORM schemas, and spatial coordinate indexing.</td>
+            </tr>
+            <tr>
+              <td><strong>HTML5 & CSS3</strong></td>
+              <td>Tailwind CSS v4.2.4</td>
+              <td><span class="badge-blue">~2% Styling</span></td>
+              <td><code>app/global.css</code>, responsive mobile shell viewport styling, custom map marker animations, glassmorphism cards, and print-ready PDF guides.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SECTION 3: COMPLETE TECHNOLOGY STACK -->
+    <div class="section section-break">
+      <div class="section-header">
+        <h2>3. Complete Technology Stack (Frontend, Backend, Database & Maps)</h2>
+        <span class="section-tag">Full Stack</span>
+      </div>
+      <div class="section-body">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 22%;">Layer / Category</th>
+              <th style="width: 28%;">Technology / Package</th>
+              <th style="width: 14%;">Version</th>
+              <th>Purpose in Project</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Frontend UI Library</strong></td>
+              <td><code>react</code> & <code>react-dom</code></td>
+              <td><code>19.2.7</code></td>
+              <td>Core component rendering, hooks, concurrent UI transitions, and interactive modals.</td>
+            </tr>
+            <tr>
+              <td><strong>Routing & SSR Framework</strong></td>
+              <td><code>react-router</code> & <code>@react-router/dev</code></td>
+              <td><code>8.1.0</code></td>
+              <td>Full-stack file-system routing (<code>_index.tsx</code>, <code>map.tsx</code>, <code>book.tsx</code>) and Server-Side Rendering.</td>
+            </tr>
+            <tr>
+              <td><strong>Build & Dev Server</strong></td>
+              <td><code>vite</code> + <code>@agent-native/core</code></td>
+              <td><code>8.1.0</code> / <code>0.182.1</code></td>
+              <td>Ultra-fast HMR bundler, custom API middleware, Permissions-Policy headers, and Nitro/H3 server.</td>
+            </tr>
+            <tr>
+              <td><strong>Styling Engine</strong></td>
+              <td><code>tailwindcss</code> + <code>@tailwindcss/vite</code></td>
+              <td><code>4.2.4</code></td>
+              <td>Utility-first responsive styling, dark/light badges, gradients, and mobile-first ergonomics.</td>
+            </tr>
+            <tr>
+              <td><strong>Accessible UI Primitives</strong></td>
+              <td><code>@radix-ui/react-*</code> + <code>vaul</code></td>
+              <td><code>Latest</code></td>
+              <td>Dialogs, dropdowns, sheets, tooltips, accordions, switches, and mobile bottom drawers.</td>
+            </tr>
+            <tr>
+              <td><strong>Icon System</strong></td>
+              <td><code>@tabler/icons-react</code></td>
+              <td><code>3.41.1</code></td>
+              <td>Crisp vector icons for machinery, GPS pins, camera, phone calls, shields, and navigation.</td>
+            </tr>
+            <tr>
+              <td><strong>Geospatial Map Engine</strong></td>
+              <td><code>maplibre-gl</code> + <code>react-map-gl</code> + <code>Leaflet</code></td>
+              <td><code>6.11.2</code> / <code>8.1.3</code></td>
+              <td>WebGL vector tiles, satellite imagery switching, draggable site pins, and live JCB radar markers.</td>
+            </tr>
+            <tr>
+              <td><strong>State Management</strong></td>
+              <td><code>zustand</code> + <code>@tanstack/react-query</code></td>
+              <td><code>5.0.15</code> / <code>5.99.2</code></td>
+              <td>Reactive client state, real-time in-app push notification store, and async server cache.</td>
+            </tr>
+            <tr>
+              <td><strong>Forms & Validation</strong></td>
+              <td><code>react-hook-form</code> + <code>zod</code></td>
+              <td><code>7.71.2</code> / <code>4.4.3</code></td>
+              <td>Form state management and strict TypeScript runtime validation for phone numbers, OTPs, and bookings.</td>
+            </tr>
+            <tr>
+              <td><strong>Database & ORM</strong></td>
+              <td><code>@supabase/supabase-js</code> + <code>drizzle-orm</code> + <code>postgres</code></td>
+              <td><code>2.117.2</code> / <code>0.45.2</code></td>
+              <td>PostgreSQL cloud connection pooling, real-time subscriptions, and type-safe SQL queries.</td>
+            </tr>
+            <tr>
+              <td><strong>AI & Agentic SDKs</strong></td>
+              <td><code>ai</code> + <code>@ai-sdk/google</code> / <code>openai</code> / <code>anthropic</code></td>
+              <td><code>6.0.258</code></td>
+              <td>Integrated AI assistant capabilities and multi-model LLM readiness.</td>
+            </tr>
+            <tr>
+              <td><strong>Package Manager & Runtime</strong></td>
+              <td><code>pnpm</code> + <code>Node.js</code> + <code>tsx</code></td>
+              <td><code>10.14.0</code> / <code>>=22.22</code></td>
+              <td>Deterministic dependency management and TypeScript script execution.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SECTION 4: ALL API KEYS, CREDENTIALS & EXTERNAL ENDPOINTS -->
+    <div class="section section-break">
+      <div class="section-header">
+        <h2>4. All API Keys, Database Credentials & External Services Used</h2>
+        <span class="section-tag">API Keys & Secrets</span>
+      </div>
+      <div class="section-body">
+        <p style="margin-bottom: 8px;">
+          Below is the complete inventory of all environment variables, API keys, database connection strings (stored in <code>.env</code>), and external geospatial APIs active in the project:
+        </p>
+
+        <div class="code-block">
+          <span class="comment"># 1. SUPABASE CLOUD POSTGRESQL (TRANSACTION POOLER - PORT 6543)</span><br />
+          <span class="key">DATABASE_URL</span>=<span class="val">postgresql://postgres.avavshltiiafnxdzrvza:Abhi%407892667467@aws-0-ap-south-1.pooler.supabase.com:6543/postgres</span><br /><br />
+          <span class="comment"># 2. SUPABASE CLOUD POSTGRESQL (SESSION / DIRECT POOLER - PORT 5432)</span><br />
+          <span class="key">DATABASE_URL_UNPOOLED</span>=<span class="val">postgresql://postgres.avavshltiiafnxdzrvza:Abhi%407892667467@aws-0-ap-south-1.pooler.supabase.com:5432/postgres</span><br /><br />
+          <span class="comment"># 3. SUPABASE PROJECT API URL (AP-SOUTH-1 MUMBAI REGION)</span><br />
+          <span class="key">VITE_SUPABASE_URL</span>=<span class="val">https://avavshltiiafnxdzrvza.supabase.co</span><br /><br />
+          <span class="comment"># 4. STADIA MAPS VECTOR TILE & STYLE API KEY</span><br />
+          <span class="key">VITE_STADIA_KEY</span>=<span class="val">abd1cf7c-c8ca-4b47-a786-de5a7d41aaa6</span>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 24%;">Service / API Name</th>
+              <th style="width: 30%;">Key / Identifier / Endpoint</th>
+              <th style="width: 16%;">Auth Type</th>
+              <th>Exact Role in Application</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Stadia Maps API</strong></td>
+              <td>Key: <code>abd1cf7c-c8ca-4b47-a786-de5a7d41aaa6</code><br />Style: <code>alidade_smooth.json</code></td>
+              <td><span class="badge-amber">API Key</span></td>
+              <td>Renders high-contrast street vector maps and road networks in <code>realtime-map.tsx</code> and <code>live-tracking-screen.tsx</code>.</td>
+            </tr>
+            <tr>
+              <td><strong>Supabase PostgreSQL</strong></td>
+              <td>Project Ref: <code>avavshltiiafnxdzrvza</code><br />Host: <code>aws-0-ap-south-1.pooler.supabase.com</code><br />Password: <code>Abhi@7892667467</code></td>
+              <td><span class="badge-green">PostgreSQL URI</span></td>
+              <td>Cloud relational database storing JCB fleet vehicles, consumer bookings, advance payments, and live GPS coordinates.</td>
+            </tr>
+            <tr>
+              <td><strong>Supabase JS Client</strong></td>
+              <td>URL: <code>https://avavshltiiafnxdzrvza.supabase.co</code><br />Env: <code>VITE_SUPABASE_ANON_KEY</code></td>
+              <td><span class="badge-blue">JWT Anon Key</span></td>
+              <td>Client-side Supabase SDK configured in <code>app/lib/supabase.ts</code> for direct browser queries & realtime channels.</td>
+            </tr>
+            <tr>
+              <td><strong>Esri ArcGIS World Imagery</strong></td>
+              <td><code>https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}</code></td>
+              <td><span class="badge-green">Public Tile API</span></td>
+              <td>Provides high-resolution aerial satellite view when the user clicks the <strong>"Satellite"</strong> toggle on the map.</td>
+            </tr>
+            <tr>
+              <td><strong>OpenStreetMap Nominatim</strong></td>
+              <td><code>https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lng}</code></td>
+              <td><span class="badge-green">Public REST API</span></td>
+              <td>Converts raw hardware GPS coordinates (Latitude/Longitude) into human-readable street & village names.</td>
+            </tr>
+            <tr>
+              <td><strong>Browser Hardware GNSS / GPS</strong></td>
+              <td><code>navigator.geolocation.getCurrentPosition</code> & <code>watchPosition</code></td>
+              <td><span class="badge-blue">Permissions-Policy</span></td>
+              <td>Fetches real-time hardware satellite/Wi-Fi location from the user's phone or laptop (`geolocation=*` enabled).</td>
+            </tr>
+            <tr>
+              <td><strong>Browser MediaDevices Camera API</strong></td>
+              <td><code>navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })</code></td>
+              <td><span class="badge-blue">Permissions-Policy</span></td>
+              <td>Powers the live plot inspection camera in <code>live-camera-modal.tsx</code> (`camera=*` enabled).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SECTION 5: END-TO-END CONSUMER BOOKING WORKFLOW -->
+    <div class="section section-break">
+      <div class="section-header">
+        <h2>5. End-to-End Consumer Booking Architecture (7-Stage Funnel)</h2>
+        <span class="section-tag">User Journey</span>
+      </div>
+      <div class="section-body">
+        <div class="flow-step">
+          <div class="flow-num">1</div>
+          <div class="flow-content">
+            <h4>Login & Instant OTP Verification (<code>app/components/auth/login-screen.tsx</code>)</h4>
+            <p>
+              Displays the clean welcome header (<em>"Hello Client...!! Ready to book JCB..."</em> with custom JCB icon), collects <strong>Name</strong> and <strong>10-digit Mobile Number (+91)</strong>, generates a 4-digit OTP with an interactive SMS Banner & 1-click Auto-Fill, and includes a plain-text <em>"Log-in as JCB Owner"</em> mode switcher at the bottom.
+            </p>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">2</div>
+          <div class="flow-content">
+            <h4>Live Hardware GPS Map & JCB Discovery (<code>app/components/map/realtime-map.tsx</code>)</h4>
+            <p>
+              Automatically acquires the user's real-time hardware location using a 3-tier GPS engine (Satellite GNSS &rarr; Network Wi-Fi Fix &rarr; Calibrated Kyatasandra Hub). Displays nearby JCBs with live ETA badges, supports Vector/Satellite switching, and presents the bottom confirmation card with the prominent yellow <strong>"BOOK JCB &rarr;"</strong> button.
+            </p>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">3</div>
+          <div class="flow-content">
+            <h4>Site Booking Details & Live Plot Camera (<code>app/components/booking/site-booking-details.tsx</code>)</h4>
+            <p>
+              Allows the consumer to select plot dimensions (<code>30 × 40 ft</code>, <code>40 × 60 ft</code>, <code>60 × 40 ft</code>, or custom), adjust estimated machine hours, toggle <strong>Tractor Tipper</strong> debris removal trips, and capture/upload surrounding plot photos via the live camera modal.
+            </p>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">4</div>
+          <div class="flow-content">
+            <h4>Payment Mode Selection (<code>app/components/booking/payment-mode-screen.tsx</code>)</h4>
+            <p>
+              Lets the consumer choose how they want to settle the main work bill: <strong>Cash on Spot</strong> (pay operator directly at the site after work completion) or <strong>Online Payment</strong> (UPI / NetBanking / Cards).
+            </p>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">5</div>
+          <div class="flow-content">
+            <h4>JCB Machine Catalog & Operator Selection (<code>app/components/booking/jcb-catalog-screen.tsx</code>)</h4>
+            <p>
+              Presents available machinery near the site: <strong>JCB 3DX Super Backhoe (₹950/hr)</strong>, <strong>JCB 3DX EcoXpert (₹1,050/hr)</strong>, <strong>JCB 2DX Mini Backhoe (₹800/hr)</strong>, and <strong>Heavy Tracked Excavator (₹1,450/hr)</strong> with operator ratings, registration numbers, and ETAs.
+            </p>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">6</div>
+          <div class="flow-content">
+            <h4>₹500 Token Advance Payment Gateway (<code>app/components/booking/advance-payment-screen.tsx</code>)</h4>
+            <p>
+              Collects a refundable/adjustable <strong>₹500 Advance Booking Fee</strong> via PhonePe, Google Pay, Paytm, or UPI ID to confirm genuine intent and lock the JCB operator. Automatically deducts ₹500 from the total estimated bill.
+            </p>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">7</div>
+          <div class="flow-content">
+            <h4>Booking Confirmation & Live Turn-by-Turn Tracking (<code>booking-success-screen.tsx</code> & <code>live-tracking-screen.tsx</code>)</h4>
+            <p>
+              Displays the high-visibility green/yellow confirmation modal with Booking ID (<code>#JCB-XXXX</code>), triggers an in-app push notification with sound, and launches the live route tracker showing the JCB moving in real time toward the consumer's plot.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 6: CODEBASE DIRECTORY & FILE MAP -->
+    <div class="section section-break">
+      <div class="section-header">
+        <h2>6. Project Directory & Key Source Files</h2>
+        <span class="section-tag">Codebase Structure</span>
+      </div>
+      <div class="section-body">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 38%;">File Path</th>
+              <th>Module Responsibility</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>vite.config.ts</code></td>
+              <td>Port 5050 server config, <code>Permissions-Policy</code> geolocation header injection, and custom API endpoints (<code>/api/location</code>, <code>/api/report-location</code>, <code>/api/latest-device-gps</code>).</td>
+            </tr>
+            <tr>
+              <td><code>.env</code></td>
+              <td>Stores <code>DATABASE_URL</code>, <code>DATABASE_URL_UNPOOLED</code>, <code>VITE_SUPABASE_URL</code>, and <code>VITE_STADIA_KEY</code>.</td>
+            </tr>
+            <tr>
+              <td><code>app/routes/_index.tsx</code></td>
+              <td>Main application orchestrator managing authentication state, language switching, and the 7-step consumer booking funnel.</td>
+            </tr>
+            <tr>
+              <td><code>app/routes/map.tsx</code> & <code>app/components/map/MapView.tsx</code></td>
+              <td>Standalone high-precision MapLibre GL hardware GPS watcher route (<code>/map</code>).</td>
+            </tr>
+            <tr>
+              <td><code>app/components/auth/login-screen.tsx</code></td>
+              <td>Consumer & JCB Owner login screen with custom JCB emoji (<code>/jcb-emoji.png</code>) and 4-digit OTP verification.</td>
+            </tr>
+            <tr>
+              <td><code>app/components/map/realtime-map.tsx</code></td>
+              <td>Interactive Consumer Map with 3-tier hardware GPS, Stadia/Satellite tiles, JCB markers, and Book JCB bottom card.</td>
+            </tr>
+            <tr>
+              <td><code>app/components/booking/*</code></td>
+              <td>Contains <code>site-booking-details.tsx</code>, <code>live-camera-modal.tsx</code>, <code>payment-mode-screen.tsx</code>, <code>jcb-catalog-screen.tsx</code>, <code>advance-payment-screen.tsx</code>, and <code>booking-success-screen.tsx</code>.</td>
+            </tr>
+            <tr>
+              <td><code>app/components/mobile/*</code></td>
+              <td>Contains <code>mobile-shell.tsx</code>, <code>owner-dashboard.tsx</code> (for JCB owners), <code>admin-dashboard.tsx</code>, <code>site-calculator.tsx</code>, and <code>support-sheet.tsx</code>.</td>
+            </tr>
+            <tr>
+              <td><code>app/lib/translations.ts</code></td>
+              <td>Complete bilingual English (<code>en</code>) and Kannada (<code>kn</code>) dictionary across all screens.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer">
+      DigMitra PRO — JCB Site Cleaning & Debris Extraction Marketplace • Generated on October 13, 2026 • Confidential Technical Report
+    </div>
+  </div>
+
+</body>
+</html>

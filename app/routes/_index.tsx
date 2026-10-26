@@ -38,6 +38,7 @@ import {
 import { BookingSuccessScreen } from "@/components/booking/booking-success-screen";
 import { LiveTrackingScreen } from "@/components/map/live-tracking-screen";
 import { emitAppNotification } from "@/lib/notification-store";
+import { syncUserToOnlineDb, saveBookingToOnlineDb } from "@/lib/supabase";
 import { APP_TITLE } from "@/lib/app-config";
 import { type SupportedLanguage, translations } from "@/lib/translations";
 
@@ -69,6 +70,9 @@ export default function IndexRoute() {
 
   const handleLoginSuccess = (user: AuthUser) => {
     setCurrentUser(user);
+    syncUserToOnlineDb(user).catch((err) =>
+      console.warn("User online sync error:", err)
+    );
   };
 
   const handleLogout = () => {
@@ -184,6 +188,7 @@ export default function IndexRoute() {
   const [selectedPaymentMode, setSelectedPaymentMode] = useState<PaymentMode>("cash_on_spot");
   const [selectedJcb, setSelectedJcb] = useState<JcbMachineItem>(AVAILABLE_JCBS[0]);
   const [advancePaymentResult, setAdvancePaymentResult] = useState<AdvancePaymentResult | null>(null);
+  const [liveSiteLocation, setLiveSiteLocation] = useState<string>("Kyatasandra, Tumakuru - 572101");
 
   // Handle Estimate Application from Calculator
   const handleApplyEstimate = (data: {
@@ -235,13 +240,34 @@ export default function IndexRoute() {
     setConsumerPage("booking_success");
     setBookingSuccessModal(true);
 
+    // Persist booking 100% online in Supabase cloud database
+    saveBookingToOnlineDb({
+      bookingRef: bookingId,
+      customerName: currentUser?.name || "Customer",
+      customerPhone: currentUser?.phone || "",
+      siteAddress: liveSiteLocation,
+      siteLat: 13.3151,
+      siteLng: 77.1338,
+      siteDimension: bookingData?.siteDimension || "30 × 40 ft",
+      workType: "plot_cleaning",
+      selectedJcbType: (selectedJcb as any).machine || selectedJcb.model,
+      selectedTipperType: bookingData?.tractorRequired ? bookingData.tractorType : undefined,
+      advanceAmount: 500,
+      totalEstimate: estimatedGrandTotal,
+      paymentMode: selectedPaymentMode,
+      photos: bookingData?.surroundingImages || [],
+      tractorRequired: bookingData?.tractorRequired || false,
+      tractorTotal: bookingData?.tractorTotal || 0,
+      machineHours: bookingData?.machineHours || 3,
+    }).catch((e) => console.error("Cloud booking save error:", e));
+
     // Emit real-time in-app push notification
     emitAppNotification({
       type: "booked",
       title: "🎉 JCB Successfully Booked!",
       titleKn: "🎉 ಜೆಸಿಬಿ ಯಶಸ್ವಿಯಾಗಿ ಬುಕ್ ಆಗಿದೆ!",
-      message: `Booking #${bookingId} for plot cleaning confirmed. Advance ₹500 verified. Machinery en route to Kyatasandra plot.`,
-      messageKn: `ಬುಕಿಂಗ್ #${bookingId} ಕನ್ಫರ್ಮ್ ಆಗಿದೆ. ಮುಂಗಡ ₹500 ಸ್ವೀಕರಿಸಲಾಗಿದೆ. ಯಂತ್ರವು ಕ್ಯಾತಸಂದ್ರ ಸೈಟ್‌ಗೆ ಹೊರಟಿದೆ.`,
+      message: `Booking #${bookingId} for plot cleaning confirmed. Advance ₹500 verified. Machinery en route to ${liveSiteLocation}.`,
+      messageKn: `ಬುಕಿಂಗ್ #${bookingId} ಕನ್ಫರ್ಮ್ ಆಗಿದೆ. ಮುಂಗಡ ₹500 ಸ್ವೀಕರಿಸಲಾಗಿದೆ. ಯಂತ್ರವು ಸೈಟ್‌ಗೆ ಹೊರಟಿದೆ.`,
       iconEmoji: "🎉",
       accentColor: "emerald",
       actionLabel: "Track Live Map",
@@ -298,20 +324,21 @@ export default function IndexRoute() {
                 selectedMachineId={selectedMachineId}
                 onSelectMachine={(machineId) => setSelectedMachineId(machineId)}
                 onConfirmBooking={handleStartBookingDetails}
+                onLocationChange={(addr) => setLiveSiteLocation(addr)}
                 estimatedTotal={estimatedGrandTotal}
               />
             </div>
           ) : consumerPage === "details" ? (
             <SiteBookingDetails
               selectedLanguage={selectedLanguage}
-              siteLocation="Kyatasandra, Tumakuru, Karnataka"
+              siteLocation={liveSiteLocation}
               onBackToMap={() => setConsumerPage("map")}
               onProceedToPayment={handleProceedToPaymentMode}
             />
           ) : consumerPage === "payment_mode" ? (
             <PaymentModeScreen
               selectedLanguage={selectedLanguage}
-              siteLocation="Kyatasandra, Tumakuru, Karnataka"
+              siteLocation={liveSiteLocation}
               dimensionString={bookingData?.siteDimension || "30 × 40 ft"}
               photosCount={bookingData?.surroundingImages.length || 0}
               tractorRequired={bookingData?.tractorRequired || false}
@@ -321,7 +348,7 @@ export default function IndexRoute() {
           ) : consumerPage === "jcb_catalog" ? (
             <JcbCatalogScreen
               selectedLanguage={selectedLanguage}
-              siteLocation="Kyatasandra, Tumakuru, Karnataka"
+              siteLocation={liveSiteLocation}
               dimensionString={bookingData?.siteDimension || "30 × 40 ft"}
               workHours={bookingData?.machineHours || 3}
               paymentMode={selectedPaymentMode}
@@ -359,6 +386,7 @@ export default function IndexRoute() {
                 selectedMachineId={selectedMachineId}
                 onSelectMachine={(machineId) => setSelectedMachineId(machineId)}
                 onConfirmBooking={handleStartBookingDetails}
+                onLocationChange={(addr) => setLiveSiteLocation(addr)}
                 estimatedTotal={estimatedGrandTotal}
               />
             </div>

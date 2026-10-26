@@ -122,67 +122,67 @@ export function LiveTrackingScreen({
       name: "Tractor Tipper (3 Ton)",
       nameKn: "ಟ್ರಾಕ್ಟರ್ ಟಿಪ್ಪರ್ (3 ಟನ್)",
       shortName: "Tractor Tipper",
-      plate: "KA-06-TR-3891",
-      location: "Kyatasandra Depo Yard (2.2 km away)",
-      locationKn: "ಕ್ಯಾತಸಂದ್ರ ಡಿಪೋ (2.2 ಕಿ.ಮೀ ದೂರ)",
+      plate: "DISPATCH-ASSIGNED",
+      location: "Trailing JCB Operator",
+      locationKn: "ಜೆಸಿಬಿ ಜೊತೆಗೆ ಸಾಗಣೆ",
       eta: `${tractorRouteData.durationMin * 4} Mins`,
       etaKn: `${tractorRouteData.durationMin * 4} ನಿಮಿಷ`,
       distance: `${tractorRouteData.distanceKm} km`,
       speed: "24 km/h",
-      driverName: "Manjunath",
-      driverPhone: "+91 98451 45678",
+      driverName: "Tipper Operator",
+      driverPhone: "",
       image:
         "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=500&q=80",
       bata: 150,
       emoji: "🚜",
       coords: tractorRouteData.startCoords,
       route: tractorRouteData.waypoints,
-      roadDesc: "Via Kyatasandra Depo, Ring Road & Sector Ave",
-      roadDescKn: "ಕ್ಯಾತಸಂದ್ರ ಡಿಪೋ, ರಿಂಗ್ ರಸ್ತೆ & ಸೆಕ್ಟರ್ ರಸ್ತೆ ಮೂಲಕ ಸಾಗುತ್ತಿದೆ",
+      roadDesc: "En route trailing JCB to site",
+      roadDescKn: "ಜೆಸಿಬಿ ಜೊತೆಗೆ ಸೈಟ್‌ಗೆ ಸಾಗುತ್ತಿದೆ",
     },
     tata_407: {
       name: "Tata 407 Tipper (2.5 - 3 Ton)",
       nameKn: "ಟಾಟಾ 407 ಟಿಪ್ಪರ್ (2.5 - 3 ಟನ್)",
       shortName: "Tata 407",
-      plate: "KA-06-TT-5021",
-      location: "Tumakuru Toll Plaza (2.6 km away)",
-      locationKn: "ತುಮಕೂರು ಟೋಲ್ ಪ್ಲಾಜಾ (2.6 ಕಿ.ಮೀ ದೂರ)",
+      plate: "DISPATCH-ASSIGNED",
+      location: "En Route to Site",
+      locationKn: "ಸೈಟ್ ಮಾರ್ಗದಲ್ಲಿದೆ",
       eta: `${tata407RouteData.durationMin * 3.5} Mins`,
       etaKn: `${tata407RouteData.durationMin * 3.5} ನಿಮಿಷ`,
       distance: `${tata407RouteData.distanceKm} km`,
       speed: "32 km/h",
-      driverName: "Suresh Kumar",
-      driverPhone: "+91 97412 88990",
+      driverName: "Tipper Operator",
+      driverPhone: "",
       image:
         "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=500&q=80",
       bata: 200,
       emoji: "🚚",
       coords: tata407RouteData.startCoords,
       route: tata407RouteData.waypoints,
-      roadDesc: "Via Tumakuru Toll, NH 48 & Kyatasandra Roads",
-      roadDescKn: "ತುಮಕೂರು ಟೋಲ್ & NH 48 ಹೆದ್ದಾರಿ ರಸ್ತೆ ಮೂಲಕ ಸಾಗುತ್ತಿದೆ",
+      roadDesc: "En route to site",
+      roadDescKn: "ಸೈಟ್ ಮಾರ್ಗದಲ್ಲಿ ಸಾಗುತ್ತಿದೆ",
     },
     tata_signa_6w: {
       name: "Tata Signa 6W Heavy Tipper (8 Ton)",
       nameKn: "ಟಾಟಾ ಸಿಗ್ನಾ 6W ಹೆವಿ ಟಿಪ್ಪರ್ (8 ಟನ್)",
       shortName: "Tata Signa 6W",
-      plate: "KA-06-SG-9104",
-      location: "Batawadi Bypass Ring (3.1 km away)",
-      locationKn: "ಬಟವಾಡಿ ಬೈಪಾಸ್ ರಿಂಗ್ (3.1 ಕಿ.ಮೀ ದೂರ)",
+      plate: "DISPATCH-ASSIGNED",
+      location: "En Route to Site",
+      locationKn: "ಸೈಟ್ ಮಾರ್ಗದಲ್ಲಿದೆ",
       eta: `${signaRouteData.durationMin * 4.5} Mins`,
       etaKn: `${signaRouteData.durationMin * 4.5} ನಿಮಿಷ`,
       distance: `${signaRouteData.distanceKm} km`,
       speed: "28 km/h",
-      driverName: "Anand Gowda",
-      driverPhone: "+91 99003 44556",
+      driverName: "Tipper Operator",
+      driverPhone: "",
       image:
         "https://images.unsplash.com/photo-1586191582152-44a6b2512a14?auto=format&fit=crop&w=500&q=80",
       bata: 300,
       emoji: "🚛",
       coords: signaRouteData.startCoords,
       route: signaRouteData.waypoints,
-      roadDesc: "Via Batawadi Ring Road & Link Road",
-      roadDescKn: "ಬಟವಾಡಿ ರಿಂಗ್ ರಸ್ತೆ & ಲಿಂಕ್ ರಸ್ತೆ ಮೂಲಕ ಸಾಗುತ್ತಿದೆ",
+      roadDesc: "En route to site",
+      roadDescKn: "ಸೈಟ್ ಮಾರ್ಗದಲ್ಲಿ ಸಾಗುತ್ತಿದೆ",
     },
   };
 
@@ -192,23 +192,23 @@ export function LiveTrackingScreen({
   const jcbDetails = {
     name: selectedJcb?.model || "JCB 3DX Super Backhoe",
     shortName: "JCB 3DX",
-    plate: "KA-06-EA-7842",
-    location: isKn ? "ತುಮಕೂರು ಬೈಪಾಸ್ ರಸ್ತೆ (1.8 ಕಿ.ಮೀ ದೂರ)" : "Tumakuru Bypass Rd (3.6 km driving)",
-    eta: isKn ? "22 ನಿಮಿಷ" : "22 Mins",
+    plate: (selectedJcb as any)?.plateNumber || "DISPATCH-ASSIGNED",
+    location: isKn ? "ಸೈಟ್‌ಗೆ ಬರುತ್ತಿದೆ" : "Dispatched to Site",
+    eta: selectedJcb?.eta || (isKn ? "22 ನಿಮಿಷ" : "22 Mins"),
     distance: `${jcbRouteData.distanceKm} km`,
     speed: "28 km/h",
-    driverName: selectedJcb?.driverName || "Ramesh Gowda",
-    driverPhone: "+91 98451 23456",
+    driverName: selectedJcb?.driverName || (isKn ? "ನಿಯೋಜಿತ ಚಾಲಕರು" : "Assigned Driver"),
+    driverPhone: (selectedJcb as any)?.phone || "",
     image:
       selectedJcb?.image && !selectedJcb.image.includes("1581094288338") && !selectedJcb.image.includes("1579829366248")
         ? selectedJcb.image
         : "https://images.unsplash.com/photo-1580983218765-f663bec07b37?auto=format&fit=crop&w=700&q=80",
-    rating: selectedJcb?.rating || 4.92,
+    rating: selectedJcb?.rating || 5.0,
     emoji: "🚜",
     coords: jcbRouteData.startCoords,
     route: jcbRouteData.waypoints,
-    roadDesc: "Via Tumakuru Bypass, Batawadi Cross & NH 48",
-    roadDescKn: "ತುಮಕೂರು ಬೈಪಾಸ್ & NH 48 ರಸ್ತೆ ಮೂಲಕ ಸಾಗುತ್ತಿದೆ",
+    roadDesc: "En route to site",
+    roadDescKn: "ಸೈಟ್ ಮಾರ್ಗದಲ್ಲಿ ಸಾಗುತ್ತಿದೆ",
   };
 
   const currentVehicleData = activeVehicle === "jcb" ? jcbDetails : debrisVehicle;
@@ -635,13 +635,19 @@ export function LiveTrackingScreen({
               </div>
 
               {/* Call Driver Action */}
-              <a
-                href={`tel:${currentVehicleData.driverPhone}`}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-xs font-black shadow-md transition active:scale-95"
-              >
-                <IconPhone size={13} stroke={2.5} />
-                <span>{isKn ? "ಕರೆ ಮಾಡಿ" : "Call Driver"}</span>
-              </a>
+              {currentVehicleData.driverPhone ? (
+                <a
+                  href={`tel:${currentVehicleData.driverPhone}`}
+                  className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-xs font-black shadow-md transition active:scale-95"
+                >
+                  <IconPhone size={13} stroke={2.5} />
+                  <span>{isKn ? "ಕರೆ ಮಾಡಿ" : "Call Driver"}</span>
+                </a>
+              ) : (
+                <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/80 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+                  ✓ {isKn ? "ಲೈವ್ ಸಂಪರ್ಕ" : "Connected"}
+                </span>
+              )}
             </div>
           </div>
 

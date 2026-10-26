@@ -15,8 +15,9 @@ import {
   IconSteeringWheel,
   IconUserCheck,
 } from "@tabler/icons-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { fetchVehiclesFromOnlineDb } from "@/lib/supabase";
 import type { SupportedLanguage } from "@/lib/translations";
 import type { PaymentMode } from "./payment-mode-screen";
 
@@ -44,90 +45,65 @@ export interface JcbMachineItem {
 export const AVAILABLE_JCBS: JcbMachineItem[] = [
   {
     id: "jcb_3dx_plus",
-    model: "JCB 3DX Plus Super Backhoe",
-    tagline: "Most Popular for Residential & Commercial Site Cleaning",
+    model: "JCB 3DX Super Backhoe",
+    tagline: "Standard backhoe for residential plots, weed & boulder clearance",
     image:
       "https://images.unsplash.com/photo-1580983218765-f663bec07b37?auto=format&fit=crop&w=700&q=80",
-    driverName: "Ramesh Gowda",
-    driverPhoto:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
-    driverExperience: "9 Years Experience (480+ Sites Cleared)",
+    driverName: "Verified Fleet Operator",
+    driverPhoto: "",
+    driverExperience: "Certified Heavy Machinery Operator",
     costPerHour: 950,
     minimumCharges: "Min 2 Hours (₹1,900)",
     minimumHours: 2,
     driverBata: "₹200 / day",
     capacity: "Front Shovel 1.0 m³ • Backhoe Bucket 0.26 m³ (Max Dig Depth 4.77m)",
     enginePower: "76 HP EcoMax Fuel Efficient",
-    eta: "25 mins away",
-    distance: "1.8 km",
-    rating: 4.92,
-    completedJobs: 486,
+    eta: "Dispatched upon confirmation",
+    distance: "Nearest Local Operator",
+    rating: 5.0,
+    completedJobs: 0,
     verified: true,
   },
   {
     id: "jcb_4dx_heavy",
-    model: "JCB 4DX Heavy Duty Excavator Loader",
-    tagline: "Heavy Rock Breaker & Dense Jungle Clearing Specialist",
+    model: "JCB 4DX Heavy Duty Excavator",
+    tagline: "Heavy rock breaker & deep foundation extraction specialist",
     image:
       "https://images.unsplash.com/photo-1580983218765-f663bec07b37?auto=format&fit=crop&w=700&q=80",
-    driverName: "Manjunatha Swamy",
-    driverPhoto:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80",
-    driverExperience: "12 Years Experience (650+ Sites Cleared)",
+    driverName: "Verified Fleet Operator",
+    driverPhoto: "",
+    driverExperience: "Heavy Equipment Specialist",
     costPerHour: 1100,
     minimumCharges: "Min 2 Hours (₹2,200)",
     minimumHours: 2,
     driverBata: "₹250 / day",
     capacity: "Front Shovel 1.2 m³ • Backhoe Bucket 0.30 m³ (Heavy Reinforced Boom)",
     enginePower: "92 HP Turbocharged High Output",
-    eta: "35 mins away",
-    distance: "2.6 km",
-    rating: 4.95,
-    completedJobs: 654,
+    eta: "Dispatched upon confirmation",
+    distance: "Nearest Local Operator",
+    rating: 5.0,
+    completedJobs: 0,
     verified: true,
   },
   {
     id: "jcb_3dx_eco",
-    model: "JCB 3DX EcoXcellence Backhoe",
-    tagline: "Eco-Friendly Low Noise Site Leveling & Trenching",
+    model: "JCB 3DX EcoXcellence",
+    tagline: "Low noise, fuel-efficient leveling, grading & trenching",
     image:
       "https://images.unsplash.com/photo-1541888946425-d0fbb186156f?auto=format&fit=crop&w=700&q=80",
-    driverName: "Suresh Kumar",
-    driverPhoto:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80",
-    driverExperience: "7 Years Experience (320+ Sites Cleared)",
+    driverName: "Verified Fleet Operator",
+    driverPhoto: "",
+    driverExperience: "Precision Leveling Operator",
     costPerHour: 900,
     minimumCharges: "Min 2 Hours (₹1,800)",
     minimumHours: 2,
     driverBata: "₹150 / day",
     capacity: "Front Shovel 1.0 m³ • Backhoe Bucket 0.24 m³ (Precision Trench Bucket)",
     enginePower: "74 HP Low Carbon Emission",
-    eta: "40 mins away",
-    distance: "3.2 km",
-    rating: 4.88,
-    completedJobs: 328,
-    verified: true,
-  },
-  {
-    id: "cat_424_backhoe",
-    model: "CAT 424 Heavy Backhoe Loader",
-    tagline: "Industrial Grade High Breakout Force for Hard Soil & Rocks",
-    image:
-      "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=700&q=80",
-    driverName: "Anand Murthy",
-    driverPhoto:
-      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80",
-    driverExperience: "14 Years Experience (820+ Sites Cleared)",
-    costPerHour: 1200,
-    minimumCharges: "Min 3 Hours (₹3,600)",
-    minimumHours: 3,
-    driverBata: "₹250 / day",
-    capacity: "Front Shovel 1.15 m³ • Heavy Rock Breaker Capable (Max Dig 4.85m)",
-    enginePower: "86 HP Cat C3.6 Industrial Engine",
-    eta: "50 mins away",
-    distance: "4.1 km",
-    rating: 4.96,
-    completedJobs: 820,
+    eta: "Dispatched upon confirmation",
+    distance: "Nearest Local Operator",
+    rating: 5.0,
+    completedJobs: 0,
     verified: true,
   },
 ];
@@ -199,7 +175,7 @@ export function JcbCatalogScreen({
               </strong>
             </span>
             <span className="text-emerald-700 font-bold">
-              ⚡ 4 {isKn ? "ಯಂತ್ರಗಳು ಲಭ್ಯ" : "Operators Available"}
+              ⚡ {AVAILABLE_JCBS.length} {isKn ? "ಯಂತ್ರಗಳು ಲಭ್ಯ" : "Machinery Options Available"}
             </span>
           </div>
         </div>
@@ -248,9 +224,9 @@ export function JcbCatalogScreen({
                     <span className="rounded-full bg-[#ffb400] px-2.5 py-0.5 text-[10px] font-black text-slate-950 uppercase tracking-wider shadow">
                       🚜 {isKn ? "ಪರಿಶೀಲಿತ" : "Verified Operator"}
                     </span>
-                    <span className="rounded-full bg-black/60 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold text-white flex items-center gap-1">
-                      <IconStar size={12} className="text-amber-400 fill-amber-400" />
-                      <span>{jcb.rating} ({jcb.completedJobs})</span>
+                    <span className="rounded-full bg-emerald-950/70 border border-emerald-500/30 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold text-emerald-300 flex items-center gap-1">
+                      <IconCheck size={12} className="text-emerald-400" />
+                      <span>{isKn ? "ಪರಿಶೀಲಿತ ಉಪಕರಣ" : "Verified Equipment"}</span>
                     </span>
                   </div>
 
@@ -275,12 +251,16 @@ export function JcbCatalogScreen({
                 <div className="p-4 space-y-3.5">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div className="flex items-center gap-2.5">
-                      <div className="relative size-12 shrink-0 overflow-hidden rounded-2xl border-2 border-[#ffb400] shadow-sm">
-                        <img
-                          src={jcb.driverPhoto}
-                          alt={jcb.driverName}
-                          className="h-full w-full object-cover"
-                        />
+                      <div className="relative size-12 shrink-0 overflow-hidden rounded-2xl bg-amber-500/10 border-2 border-[#ffb400] flex items-center justify-center text-amber-500 shadow-sm">
+                        {jcb.driverPhoto ? (
+                          <img
+                            src={jcb.driverPhoto}
+                            alt={jcb.driverName}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <IconSteeringWheel size={24} className="text-[#ffb400]" />
+                        )}
                         <span className="absolute bottom-0 right-0 bg-emerald-500 rounded-tl p-0.5 text-[8px] text-white font-black">
                           ✓
                         </span>

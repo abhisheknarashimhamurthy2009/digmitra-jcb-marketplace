@@ -17,7 +17,39 @@ const redirectAuthPlugin = () => ({
   name: "redirect-auth-to-root",
   configureServer(server: any) {
     server.middlewares.use((req: any, res: any, next: any) => {
+      try {
+        res.setHeader(
+          "Permissions-Policy",
+          "camera=*, microphone=(self), geolocation=*, screen-wake-lock=*"
+        );
+      } catch {}
+
       const pathname = req.url?.split("?")[0];
+      if (pathname === "/api/report-location" && req.method === "POST") {
+        let body = "";
+        req.on("data", (chunk: any) => { body += chunk; });
+        req.on("end", () => {
+          try {
+            const parsed = JSON.parse(body);
+            (globalThis as any).__latestDeviceGps = {
+              ...parsed,
+              serverReceivedAt: new Date().toISOString(),
+              remoteAddress: req.socket?.remoteAddress,
+            };
+            console.log("🔥 [HARDWARE_GPS_VERIFIED_DEVICE]:", JSON.stringify((globalThis as any).__latestDeviceGps, null, 2));
+          } catch {}
+          res.setHeader("Content-Type", "application/json");
+          res.setHeader("Access-Control-Allow-Origin", "*");
+          res.end(JSON.stringify({ success: true }));
+        });
+        return;
+      }
+      if (pathname === "/api/latest-device-gps") {
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.end(JSON.stringify((globalThis as any).__latestDeviceGps || { status: "waiting_for_device_ping" }));
+        return;
+      }
       if (pathname === "/api/location") {
         res.setHeader("Content-Type", "application/json");
         res.setHeader("Access-Control-Allow-Origin", "*");
@@ -49,6 +81,9 @@ export default defineConfig({
   server: {
     port: 5050,
     host: true,
+    headers: {
+      "Permissions-Policy": "camera=*, microphone=(self), geolocation=*, screen-wake-lock=*",
+    },
   },
   optimizeDeps: {
     // React Router discovers route modules outside Vite's default HTML crawl.

@@ -15,11 +15,13 @@ import {
   IconTrash,
   IconTruck,
   IconUpload,
+  IconLoader2,
   IconX,
 } from "@tabler/icons-react";
 import { useState } from "react";
 
 import type { SupportedLanguage } from "@/lib/translations";
+import { uploadCloudPhoto } from "@/lib/supabase";
 import { LiveCameraModal } from "./live-camera-modal";
 
 export interface BookingSubmissionData {
@@ -93,6 +95,7 @@ export function SiteBookingDetails({
   const [images, setImages] = useState<string[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
   const [isLiveCameraOpen, setIsLiveCameraOpen] = useState<boolean>(false);
+  const [isUploadingPhotos, setIsUploadingPhotos] = useState<boolean>(false);
 
   // 3. Tractor / Tipper / Debris Vehicle State (Timing-based measurement scale)
   const [tractorRequired, setTractorRequired] = useState<boolean>(true);
@@ -187,8 +190,8 @@ export function SiteBookingDetails({
     }
   };
 
-  // Image Upload Handler (Supports multiple files up to max 7)
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image Upload Handler (Uploads directly to Supabase cloud storage bucket)
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFiles = Array.from(e.target.files);
       const remainingSlots = 7 - images.length;
@@ -214,9 +217,21 @@ export function SiteBookingDetails({
         setImageError(null);
       }
 
-      const newUrls = filesToAdd.map((file) => URL.createObjectURL(file));
-      setImages((prev) => [...prev, ...newUrls]);
-      e.target.value = "";
+      setIsUploadingPhotos(true);
+      try {
+        const uploadPromises = filesToAdd.map((file) =>
+          uploadCloudPhoto(file, "site-photos")
+        );
+        const uploadedUrls = await Promise.all(uploadPromises);
+        setImages((prev) => [...prev, ...uploadedUrls]);
+      } catch (err: any) {
+        console.error("Cloud photo upload error:", err);
+        const fallbackUrls = filesToAdd.map((file) => URL.createObjectURL(file));
+        setImages((prev) => [...prev, ...fallbackUrls]);
+      } finally {
+        setIsUploadingPhotos(false);
+        e.target.value = "";
+      }
     }
   };
 
@@ -980,10 +995,21 @@ export function SiteBookingDetails({
       <LiveCameraModal
         isOpen={isLiveCameraOpen}
         onClose={() => setIsLiveCameraOpen(false)}
-        onCapturePhoto={(dataUrl) => {
+        onCapturePhoto={async (dataUrl) => {
           if (images.length < 7) {
-            setImages((prev) => [...prev, dataUrl]);
-            setImageError(null);
+            setIsUploadingPhotos(true);
+            try {
+              const res = await fetch(dataUrl);
+              const blob = await res.blob();
+              const cloudUrl = await uploadCloudPhoto(blob, "site-photos");
+              setImages((prev) => [...prev, cloudUrl]);
+            } catch (err) {
+              console.warn("Cloud camera upload fallback:", err);
+              setImages((prev) => [...prev, dataUrl]);
+            } finally {
+              setIsUploadingPhotos(false);
+              setImageError(null);
+            }
           }
         }}
         currentPhotosCount={images.length}

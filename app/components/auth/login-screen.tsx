@@ -97,7 +97,8 @@ export function LoginScreen({
   };
 
   const handleAutoFillOtp = () => {
-    const code = smsToast?.code || generatedOtp || "4829";
+    const code = smsToast?.code || generatedOtp;
+    if (!code) return;
     const digits = code.split("");
     setOtpDigits(digits);
     setErrorMsg(null);
@@ -149,17 +150,17 @@ export function LoginScreen({
       return;
     }
 
-    // Accept either generated OTP or test default "0000"
-    if (enteredOtp !== generatedOtp && enteredOtp !== "0000") {
+    // Verify against generated OTP
+    if (enteredOtp !== generatedOtp) {
       setErrorMsg(
         isKn
           ? `ತಪ್ಪಾದ OTP! ದಯವಿಟ್ಟು ${generatedOtp} ನಮೂದಿಸಿ.`
-          : `Invalid OTP! Please enter ${generatedOtp} or 0000.`,
+          : `Invalid OTP! Please enter ${generatedOtp}.`,
       );
       return;
     }
 
-    const cleanNum = phoneNumber.replace(/\D/g, "") || "9876543210";
+    const cleanNum = phoneNumber.replace(/\D/g, "");
     const finalName = userName.trim() || (
       selectedRole === "consumer"
         ? (isKn ? "ಗ್ರಾಹಕರು" : "Property Owner")
@@ -252,82 +253,26 @@ export function LoginScreen({
           </div>
         </div>
 
-        {/* 3-Step Procedure Flow Indicator */}
-        <div className="flex items-center justify-between px-3 py-2 bg-white rounded-2xl border border-slate-200/90 shadow-sm text-[11px] font-black">
-          {/* Step 1: Credentials */}
-          <div className={`flex items-center gap-1.5 ${step === "phone" ? "text-[#0b3d91]" : "text-emerald-600"}`}>
-            <span className={`flex size-5 items-center justify-center rounded-full text-[10px] font-extrabold ${
-              step === "phone" ? "bg-[#0b3d91] text-white ring-2 ring-[#0b3d91]/25" : "bg-emerald-100 text-emerald-700"
-            }`}>
-              {step === "phone" ? "1" : "✓"}
-            </span>
-            <span>{isKn ? "ರುಜುವಾತುಗಳು" : "1. Credentials"}</span>
-          </div>
-
-          <IconArrowRight size={12} className="text-slate-300" stroke={2.5} />
-
-          {/* Step 2: Get OTP */}
-          <div className={`flex items-center gap-1.5 ${step === "otp" ? "text-[#0b3d91]" : step === "success" ? "text-emerald-600" : "text-slate-400"}`}>
-            <span className={`flex size-5 items-center justify-center rounded-full text-[10px] font-extrabold ${
-              step === "otp" ? "bg-[#0b3d91] text-white ring-2 ring-[#0b3d91]/25" : step === "success" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-600"
-            }`}>
-              {step === "success" ? "✓" : "2"}
-            </span>
-            <span>{isKn ? "OTP ಪರಿಶೀಲನೆ" : "2. Get OTP"}</span>
-          </div>
-
-          <IconArrowRight size={12} className="text-slate-300" stroke={2.5} />
-
-          {/* Step 3: Maps & Bookings */}
-          <div className={`flex items-center gap-1.5 ${step === "success" ? "text-emerald-600 animate-pulse font-extrabold" : "text-slate-400"}`}>
-            <span className={`flex size-5 items-center justify-center rounded-full text-[10px] font-extrabold ${
-              step === "success" ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-600"
-            }`}>
-              3
-            </span>
-            <span>{isKn ? "ಮ್ಯಾಪ್ & ಬುಕಿಂಗ್ಸ್" : "3. Live Map"}</span>
-          </div>
-        </div>
-
-        {/* Role Switcher: Consumer vs JCB Owner (Step 1) */}
+        {/* Welcoming Client Header */}
         {step === "phone" && (
-          <div>
-            <span className="block text-[11px] font-black uppercase tracking-wider text-slate-500 mb-1.5 pl-1">
-              {isKn ? "ಖಾತೆ ಪ್ರಕಾರ ಆಯ್ಕೆಮಾಡಿ:" : "Select Account Type:"}
-            </span>
-            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-200/80 p-1 border border-slate-300/60 shadow-inner">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedRole("consumer");
-                  setErrorMsg(null);
-                }}
-                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-xs font-black transition-all ${
-                  selectedRole === "consumer"
-                    ? "bg-white text-[#0b3d91] shadow-md ring-1 ring-slate-200"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <IconUser size={16} stroke={2.5} />
-                <span>{isKn ? "ಗ್ರಾಹಕರು (ಸೈಟ್ ಬುಕಿಂಗ್)" : "Consumer / Client"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedRole("owner");
-                  setErrorMsg(null);
-                }}
-                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-xs font-black transition-all ${
-                  selectedRole === "owner"
-                    ? "bg-white text-[#0b3d91] shadow-md ring-1 ring-slate-200"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <IconTruck size={16} stroke={2.5} />
-                <span>{isKn ? "JCB ಮಾಲೀಕರು" : "JCB Owner"}</span>
-              </button>
-            </div>
+          <div className="text-center py-1">
+            <h3 className="text-xl font-black text-slate-900 flex items-center justify-center gap-2">
+              <span>
+                {selectedRole === "consumer"
+                  ? (isKn ? "ಹಲೋ ಕ್ಲೈಂಟ್...!!" : "Hello Client...!!")
+                  : (isKn ? "ಹಲೋ JCB ಮಾಲೀಕರೇ...!!" : "Hello JCB Owner...!!")}
+              </span>
+              <img
+                src="/jcb-emoji.png"
+                alt="JCB"
+                className="inline-block h-8 w-auto object-contain shrink-0"
+              />
+            </h3>
+            <p className="text-xs sm:text-sm font-bold text-slate-600 mt-1">
+              {selectedRole === "consumer"
+                ? (isKn ? "ಜೆಸಿಬಿ ಬುಕ್ ಮಾಡಲು ಸಿದ್ಧರಿದ್ದೀರಾ..." : "Ready to book JCB...")
+                : (isKn ? "ಹೊಸ ಸೈಟ್ ಕೆಲಸಗಳನ್ನು ಸ್ವೀಕರಿಸಲು ಸಿದ್ಧರಿದ್ದೀರಾ..." : "Ready to accept site cleaning jobs...")}
+            </p>
           </div>
         )}
 
@@ -405,6 +350,44 @@ export function LoginScreen({
                 <span>{isKn ? "OTP ಪಡೆಯಿರಿ & ಮುಂದುವರಿಯಿರಿ" : "Get OTP & Proceed"}</span>
                 <IconArrowRight size={16} stroke={3} />
               </button>
+
+              {/* Plain Text Log-in as JCB Owner Switch (No Tab Background) */}
+              <div className="pt-2 text-center">
+                {selectedRole === "consumer" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRole("owner");
+                      setErrorMsg(null);
+                    }}
+                    className="inline-flex items-center justify-center gap-2 py-2 px-3 text-xs sm:text-sm font-black uppercase tracking-wider text-[#0b3d91] hover:text-[#082a66] active:scale-95 transition cursor-pointer group"
+                  >
+                    <span className="font-black underline decoration-2 decoration-[#ffb400] underline-offset-4">
+                      {isKn ? "JCB ಮಾಲೀಕರಾಗಿ ಲಾಗಿನ್ ಮಾಡಿ" : "Log-in as JCB Owner"}
+                    </span>
+                    <img
+                      src="/jcb-emoji.png"
+                      alt="JCB"
+                      className="inline-block h-6 w-auto object-contain shrink-0 group-hover:scale-110 transition-transform"
+                    />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRole("consumer");
+                      setErrorMsg(null);
+                    }}
+                    className="inline-flex items-center justify-center gap-2 py-2 px-3 text-xs sm:text-sm font-black uppercase tracking-wider text-[#0b3d91] hover:underline active:scale-95 transition cursor-pointer group"
+                  >
+                    <IconUser size={16} stroke={2.5} className="text-[#0b3d91]" />
+                    <span className="font-black underline decoration-2 decoration-blue-500 underline-offset-4">
+                      {isKn ? "ಗ್ರಾಹಕರು / ಕ್ಲೈಂಟ್ ಆಗಿ ಲಾಗಿನ್ ಮಾಡಿ" : "Log-in as Client / Consumer"}
+                    </span>
+                    <IconArrowRight size={15} stroke={3} className="group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                )}
+              </div>
             </form>
           ) : step === "otp" ? (
             /* STEP 2: Verify OTP */
@@ -447,16 +430,12 @@ export function LoginScreen({
                 ))}
               </div>
 
-              {/* Quick Helper Text */}
-              <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
-                <span>
-                  {isKn ? "ಕೋಡ್: " : "Verification Code: "}
-                  <strong className="text-slate-800 font-mono">{generatedOtp}</strong>
-                </span>
+              {/* Quick Action: Resend OTP */}
+              <div className="flex items-center justify-end text-[11px] text-slate-500 px-1">
                 <button
                   type="button"
                   onClick={handleSendOtp}
-                  className="font-bold text-[#0b3d91] hover:underline"
+                  className="font-bold text-[#0b3d91] hover:underline cursor-pointer"
                 >
                   {isKn ? "OTP ಮರುಕಳುಹಿಸಿ" : "Resend OTP"}
                 </button>

@@ -91,13 +91,13 @@ export function BookingSuccessScreen({
     tractor_tipper: {
       name: "Tractor Tipper (3 Ton)",
       nameKn: "ಟ್ರಾಕ್ಟರ್ ಟಿಪ್ಪರ್ (3 ಟನ್)",
-      plate: "KA-06-TR-3891",
-      location: "Kyatasandra Depo (2.2 km away)",
-      locationKn: "ಕ್ಯಾತಸಂದ್ರ ಡಿಪೋ (2.2 ಕಿ.ಮೀ ದೂರ)",
-      eta: "28 Mins (Trailing JCB)",
-      etaKn: "28 ನಿಮಿಷ (ಜೆಸಿಬಿ ಹಿಂದೆ)",
-      driverName: "Manjunath",
-      driverPhone: "+91 98451 45678",
+      plate: "DISPATCH-ASSIGNED",
+      location: "Trailing JCB Operator",
+      locationKn: "ಜೆಸಿಬಿ ಜೊತೆಗೆ ಸಾಗಣೆ",
+      eta: "Trailing JCB",
+      etaKn: "ಜೆಸಿಬಿ ಜೊತೆಗೆ",
+      driverName: "Tipper Operator",
+      driverPhone: "",
       image:
         "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&w=500&q=80",
       bata: 150,
@@ -106,13 +106,13 @@ export function BookingSuccessScreen({
     tata_407: {
       name: "Tata 407 Tipper (3 Ton)",
       nameKn: "ಟಾಟಾ 407 ಟಿಪ್ಪರ್ (3 ಟನ್)",
-      plate: "KA-06-TT-5021",
-      location: "Tumakuru Toll (2.6 km away)",
-      locationKn: "ತುಮಕೂರು ಟೋಲ್ (2.6 ಕಿ.ಮೀ ದೂರ)",
-      eta: "30 Mins (En Route)",
-      etaKn: "30 ನಿಮಿಷ (ಮಾರ್ಗದಲ್ಲಿದೆ)",
-      driverName: "Suresh Kumar",
-      driverPhone: "+91 97412 88990",
+      plate: "DISPATCH-ASSIGNED",
+      location: "En Route to Site",
+      locationKn: "ಸೈಟ್ ಮಾರ್ಗದಲ್ಲಿದೆ",
+      eta: "Dispatched",
+      etaKn: "ರವಾನಿಸಲಾಗಿದೆ",
+      driverName: "Tipper Operator",
+      driverPhone: "",
       image:
         "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=500&q=80",
       bata: 200,
@@ -121,13 +121,13 @@ export function BookingSuccessScreen({
     tata_signa_6w: {
       name: "Tata Signa 6W Tipper (8 Ton)",
       nameKn: "ಟಾಟಾ ಸಿಗ್ನಾ 6W ಟಿಪ್ಪರ್ (8 ಟನ್)",
-      plate: "KA-06-SG-9104",
-      location: "Batawadi Ring Rd (3.1 km away)",
-      locationKn: "ಬಟವಾಡಿ ರಿಂಗ್ ರಸ್ತೆ (3.1 ಕಿ.ಮೀ)",
-      eta: "35 Mins (En Route)",
-      etaKn: "35 ನಿಮಿಷ (ಮಾರ್ಗದಲ್ಲಿದೆ)",
-      driverName: "Anand Gowda",
-      driverPhone: "+91 99003 44556",
+      plate: "DISPATCH-ASSIGNED",
+      location: "En Route to Site",
+      locationKn: "ಸೈಟ್ ಮಾರ್ಗದಲ್ಲಿದೆ",
+      eta: "Dispatched",
+      etaKn: "ರವಾನಿಸಲಾಗಿದೆ",
+      driverName: "Tipper Operator",
+      driverPhone: "",
       image:
         "https://images.unsplash.com/photo-1586191582152-44a6b2512a14?auto=format&fit=crop&w=500&q=80",
       bata: 300,
@@ -139,9 +139,9 @@ export function BookingSuccessScreen({
     DEBRIS_VEHICLE_CONFIG[tractorType as keyof typeof DEBRIS_VEHICLE_CONFIG] ||
     DEBRIS_VEHICLE_CONFIG.tractor_tipper;
 
-  const jcbPlate = (selectedJcb as any)?.plateNumber || "KA-06-EA-7842";
-  const jcbEta = selectedJcb?.eta || "35 Mins";
-  const jcbLocation = selectedJcb?.distance ? `${selectedJcb.distance} (Near Batawadi)` : "Batawadi Bypass (1.8 km away)";
+  const jcbPlate = (selectedJcb as any)?.plateNumber || "DISPATCH-READY";
+  const jcbEta = selectedJcb?.eta || "Dispatched";
+  const jcbLocation = selectedJcb?.distance ? `${selectedJcb.distance}` : "Dispatched to site";
   const jcbImage =
     selectedJcb?.image ||
     "https://images.unsplash.com/photo-1579294800821-69fc850844bc?auto=format&fit=crop&w=500&q=80";
@@ -278,18 +278,24 @@ export function BookingSuccessScreen({
                   <span className="truncate">{jcbLocation}</span>
                 </div>
 
-                {/* Driver Profile & One-Touch Call */}
+                {/* Driver Profile & Contact */}
                 <div className="flex items-center justify-between pt-1 border-t border-emerald-800/80 text-[10px]">
                   <span className="text-emerald-300 font-bold truncate max-w-[130px]">
-                    👨‍✈️ {selectedJcb?.driverName || "Manjunath Gowda"}
+                    👨‍✈️ {selectedJcb?.driverName || (isKn ? "ನಿಯೋಜಿತ ಚಾಲಕರು" : "Assigned Driver")}
                   </span>
-                  <a
-                    href="tel:+919845123456"
-                    className="flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 font-bold shadow-sm active:scale-95 transition"
-                  >
-                    <IconPhone size={11} />
-                    <span>{isKn ? "ಚಾಲಕರಿಗೆ ಕರೆ" : "Call Driver"}</span>
-                  </a>
+                  {(selectedJcb as any)?.phone ? (
+                    <a
+                      href={`tel:${(selectedJcb as any).phone}`}
+                      className="flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 font-bold shadow-sm active:scale-95 transition"
+                    >
+                      <IconPhone size={11} />
+                      <span>{isKn ? "ಚಾಲಕರಿಗೆ ಕರೆ" : "Call Driver"}</span>
+                    </a>
+                  ) : (
+                    <span className="text-[10px] text-emerald-400 font-medium">
+                      ✓ {isKn ? "ಲೈವ್ ಸಂಪರ್ಕ" : "Connected"}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -353,13 +359,19 @@ export function BookingSuccessScreen({
                     <span className="text-emerald-300 font-bold truncate max-w-[130px]">
                       👨‍✈️ {debrisVehicle.driverName}
                     </span>
-                    <a
-                      href={`tel:${debrisVehicle.driverPhone}`}
-                      className="flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 font-bold shadow-sm active:scale-95 transition"
-                    >
-                      <IconPhone size={11} />
-                      <span>{isKn ? "ಕರೆ ಮಾಡಿ" : "Call Driver"}</span>
-                    </a>
+                    {debrisVehicle.driverPhone ? (
+                      <a
+                        href={`tel:${debrisVehicle.driverPhone}`}
+                        className="flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 font-bold shadow-sm active:scale-95 transition"
+                      >
+                        <IconPhone size={11} />
+                        <span>{isKn ? "ಕರೆ ಮಾಡಿ" : "Call Driver"}</span>
+                      </a>
+                    ) : (
+                      <span className="text-[10px] text-emerald-400 font-medium">
+                        ✓ {isKn ? "ಸಾಗಣೆ ನಿಯೋಜಿಸಲಾಗಿದೆ" : "Haulage Assigned"}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
