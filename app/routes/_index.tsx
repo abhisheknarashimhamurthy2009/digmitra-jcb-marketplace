@@ -193,10 +193,12 @@ export default function IndexRoute() {
     lat: number;
     lng: number;
     accuracy?: number | null;
+    pinConfirmedByUser: boolean;
   }>({
     lat: 13.3150995,
     lng: 77.133846,
     accuracy: null,
+    pinConfirmedByUser: false,
   });
 
   // Handle Estimate Application from Calculator
@@ -218,8 +220,25 @@ export default function IndexRoute() {
     }
   };
 
-  // 1. Map -> Site Details Form
-  const handleStartBookingDetails = () => {
+  // 1. Map -> Site Details Form (Triggered only after user taps "Confirm location")
+  const handleStartBookingDetails = (confirmedData?: {
+    lat: number;
+    lng: number;
+    accuracy?: number | null;
+    address?: string;
+    pinConfirmedByUser?: boolean;
+  }) => {
+    if (confirmedData) {
+      if (confirmedData.address) setLiveSiteLocation(confirmedData.address);
+      setSiteCoordinates({
+        lat: confirmedData.lat,
+        lng: confirmedData.lng,
+        accuracy: confirmedData.accuracy ?? null,
+        pinConfirmedByUser: confirmedData.pinConfirmedByUser ?? true,
+      });
+    } else {
+      setSiteCoordinates((prev) => ({ ...prev, pinConfirmedByUser: true }));
+    }
     setConsumerPage("details");
   };
 
@@ -258,6 +277,7 @@ export default function IndexRoute() {
       siteLat: siteCoordinates.lat,
       siteLng: siteCoordinates.lng,
       accuracy: siteCoordinates.accuracy ?? null,
+      pinConfirmedByUser: siteCoordinates.pinConfirmedByUser === true,
       siteDimension: bookingData?.siteDimension || "30 × 40 ft",
       workType: "plot_cleaning",
       selectedJcbType: (selectedJcb as any).machine || selectedJcb.model,
@@ -333,11 +353,16 @@ export default function IndexRoute() {
                 selectedLanguage={selectedLanguage}
                 selectedMachineId={selectedMachineId}
                 onSelectMachine={(machineId) => setSelectedMachineId(machineId)}
-                onConfirmBooking={handleStartBookingDetails}
-                onLocationChange={(addr, lat, lng, acc) => {
+                onConfirmBooking={(data) => handleStartBookingDetails(data)}
+                onLocationChange={(addr, lat, lng, acc, confirmed) => {
                   setLiveSiteLocation(addr);
                   if (lat && lng) {
-                    setSiteCoordinates({ lat, lng, accuracy: acc });
+                    setSiteCoordinates((prev) => ({
+                      lat,
+                      lng,
+                      accuracy: acc,
+                      pinConfirmedByUser: confirmed ?? prev.pinConfirmedByUser,
+                    }));
                   }
                 }}
                 estimatedTotal={estimatedGrandTotal}
@@ -400,11 +425,16 @@ export default function IndexRoute() {
                 selectedLanguage={selectedLanguage}
                 selectedMachineId={selectedMachineId}
                 onSelectMachine={(machineId) => setSelectedMachineId(machineId)}
-                onConfirmBooking={handleStartBookingDetails}
-                onLocationChange={(addr, lat, lng, acc) => {
+                onConfirmBooking={(data) => handleStartBookingDetails(data)}
+                onLocationChange={(addr, lat, lng, acc, confirmed) => {
                   setLiveSiteLocation(addr);
                   if (lat && lng) {
-                    setSiteCoordinates({ lat, lng, accuracy: acc });
+                    setSiteCoordinates((prev) => ({
+                      lat,
+                      lng,
+                      accuracy: acc,
+                      pinConfirmedByUser: confirmed ?? prev.pinConfirmedByUser,
+                    }));
                   }
                 }}
                 estimatedTotal={estimatedGrandTotal}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { useBestLocation } from "./useBestLocation";
 
 const STADIA_KEY =
   import.meta.env.VITE_STADIA_KEY || "abd1cf7c-c8ca-4b47-a786-de5a7d41aaa6";
@@ -82,57 +83,37 @@ export default function MapView({
       .catch((err) => console.warn("System location API check:", err));
   }, []);
 
-  // Setup Live Hardware GPS Watcher with high-accuracy GNSS calibration
+  // Setup Live Hardware GPS via useBestLocation (only useBestLocation talks to navigator.geolocation)
+  const { fix, status, start } = useBestLocation({ goodAccuracy: 20, maxWaitMs: 60000 });
+
   useEffect(() => {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      return;
+    start();
+  }, [start]);
+
+  useEffect(() => {
+    if (!fix) return;
+    setLiveLocation({
+      latitude: fix.lat,
+      longitude: fix.lng,
+      accuracy: Number(fix.accuracy.toFixed(1)),
+      speed: null,
+      heading: null,
+      altitude: null,
+      source: `Hardware GPS (${status})`,
+      address: "Live Hardware Coordinates",
+      isTracking: status === "locating",
+      lastUpdated: fix.timestamp,
+    });
+
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [fix.lng, fix.lat],
+        zoom: 18,
+        essential: true,
+        duration: 1000,
+      });
     }
-
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, accuracy, speed, heading, altitude } =
-          position.coords;
-
-        // Calibrate raw Wi-Fi/coarse readings into pinpoint high-precision tolerance
-        const calibratedAccuracy = accuracy > 0 && accuracy <= 15 ? Number(accuracy.toFixed(1)) : 3.2;
-
-        setLiveLocation({
-          latitude,
-          longitude,
-          accuracy: calibratedAccuracy,
-          speed: speed ? Math.round(speed * 3.6) : null,
-          heading: heading ? Math.round(heading) : null,
-          altitude: altitude ? Math.round(altitude) : null,
-          source: "Satellite GNSS / High-Precision Device GPS",
-          address: "Live Hardware Coordinates",
-          isTracking: true,
-          lastUpdated: Date.now(),
-        });
-
-        // Center map smoothly if initialized
-        if (mapRef.current) {
-          mapRef.current.flyTo({
-            center: [longitude, latitude],
-            zoom: 16.5,
-            essential: true,
-            duration: 1000,
-          });
-        }
-      },
-      (error) => {
-        console.warn("Hardware Geolocation watch info:", error.message);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
-    );
-
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
-    };
-  }, []);
+  }, [fix, status]);
 
   // Handle Dragging Pin for manual millimeter-level adjustment
   const handleMarkerDragEnd = useCallback((event: any) => {

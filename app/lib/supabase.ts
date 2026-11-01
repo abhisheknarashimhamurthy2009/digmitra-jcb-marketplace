@@ -84,6 +84,7 @@ export async function saveBookingToOnlineDb(booking: {
   siteLat: number;
   siteLng: number;
   accuracy?: number | null;
+  pinConfirmedByUser?: boolean;
   siteDimension: string;
   workType: string;
   selectedJcbType: string;
@@ -107,6 +108,7 @@ export async function saveBookingToOnlineDb(booking: {
         site_lat: booking.siteLat,
         site_lng: booking.siteLng,
         accuracy: booking.accuracy ?? null,
+        pin_confirmed_by_user: booking.pinConfirmedByUser ?? true,
         site_dimension: booking.siteDimension,
         work_type: booking.workType,
         selected_jcb_type: booking.selectedJcbType,

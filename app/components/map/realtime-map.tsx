@@ -22,11 +22,23 @@ import { reverseGeocode, useBestLocation } from "./useBestLocation";
 interface RealtimeMapProps {
   selectedLanguage?: SupportedLanguage;
   onSelectMachine?: (machineId: string) => void;
-  onLocationChange?: (address: string, lat: number, lng: number, accuracy?: number | null) => void;
+  onLocationChange?: (
+    address: string,
+    lat: number,
+    lng: number,
+    accuracy?: number | null,
+    pinConfirmed?: boolean
+  ) => void;
   siteAddress?: string;
   fullScreen?: boolean;
   selectedMachineId?: string;
-  onConfirmBooking?: () => void;
+  onConfirmBooking?: (confirmedLocation?: {
+    lat: number;
+    lng: number;
+    accuracy?: number | null;
+    address?: string;
+    pinConfirmedByUser?: boolean;
+  }) => void;
   estimatedTotal?: number;
 }
 
@@ -132,15 +144,16 @@ export function RealtimeMap({
     siteAddress || (isKn ? "ಲೈವ್ ಸಾಧನದ ಸ್ಥಳವನ್ನು ಹುಡುಕಲಾಗುತ್ತಿದೆ..." : "Detecting live device location...")
   );
   const [locationVerified, setLocationVerified] = useState(false);
-  const [mapStyle, setMapStyle] = useState<"liberty" | "satellite">("liberty");
+  const [mapStyle, setMapStyle] = useState<"liberty" | "satellite">("satellite");
+  const [isPinConfirmed, setIsPinConfirmed] = useState(false);
 
   // Track if user manually dragged pin or clicked map
   const userHasInteracted = useRef(false);
 
-  // useBestLocation hook
+  // Requirement 1: useBestLocation({ goodAccuracy: 20, maxWaitMs: 60000 })
   const { fix, status, start, stop } = useBestLocation({
-    goodAccuracy: 30,
-    maxWaitMs: 25000,
+    goodAccuracy: 20,
+    maxWaitMs: 60000,
   });
 
   // Search and popular hubs
@@ -300,12 +313,30 @@ export function RealtimeMap({
     start();
   }, [start]);
 
-  // User taps "Use my current location" / Retry
+  // User taps "Use my current location" / Keep trying
   const handleLocateMe = useCallback(() => {
     userHasInteracted.current = false;
+    setIsPinConfirmed(false);
     setLocationVerified(false);
     start();
   }, [start]);
+
+  // Requirement 4: User taps "Confirm location" button
+  const handleConfirmLocation = useCallback(() => {
+    userHasInteracted.current = true;
+    stop(); // Never move the pin again after confirmation
+    setIsPinConfirmed(true);
+    setLocationVerified(true);
+    const currentAcc = accuracyRef.current ?? accuracy ?? null;
+    onLocationChange?.(locationName, userLocation.lat, userLocation.lng, currentAcc, true);
+    onConfirmBooking?.({
+      lat: userLocation.lat,
+      lng: userLocation.lng,
+      accuracy: currentAcc,
+      address: locationName,
+      pinConfirmedByUser: true,
+    });
+  }, [accuracy, locationName, onConfirmBooking, onLocationChange, stop, userLocation.lat, userLocation.lng]);
 
   // Requirement 2: Pin follows hook's fix ONLY while status is "locating"
   // Once status is "good" or "coarse", or user drags/taps, stop auto-updating the pin.
@@ -327,7 +358,7 @@ export function RealtimeMap({
     if (mapRef.current) {
       mapRef.current.easeTo({
         center: [fix.lng, fix.lat],
-        zoom: 16.5,
+        zoom: 18,
         duration: 500,
       });
     }
@@ -344,10 +375,10 @@ export function RealtimeMap({
       setLocationVerified(status === "good");
       reverseGeocode(targetLat, targetLng, isKn).then((addr) => {
         setLocationName(addr);
-        onLocationChange?.(addr, targetLat, targetLng, targetAcc);
+        onLocationChange?.(addr, targetLat, targetLng, targetAcc, isPinConfirmed);
       });
     }
-  }, [status, isKn, fix, onLocationChange]);
+  }, [status, isKn, fix, isPinConfirmed, onLocationChange]);
 
   // Search logic
   const performSearch = async (query: string) => {
@@ -448,7 +479,7 @@ export function RealtimeMap({
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [lng, lat],
-        zoom: 16.5,
+        zoom: 18,
         essential: true,
         duration: 1000,
       });
@@ -456,10 +487,10 @@ export function RealtimeMap({
 
     const label = customLabel || (await reverseGeocode(lat, lng, isKn));
     setLocationName(label);
-    onLocationChange?.(label, lat, lng, 10);
+    onLocationChange?.(label, lat, lng, 10, isPinConfirmed);
   };
 
-  // Requirement 6: Pure MapLibre initialization (no Leaflet)
+  // Requirement 6: Pure MapLibre initialization (Default Satellite View, Zoom 18)
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -470,7 +501,7 @@ export function RealtimeMap({
       container: mapContainerRef.current,
       style: mapStyle === "satellite" ? SATELLITE_STYLE : VECTOR_STYLE,
       center: [initialLng, initialLat], // [lng, lat] format
-      zoom: 16.5,
+      zoom: 18,
       attributionControl: false,
     });
 
@@ -504,6 +535,7 @@ export function RealtimeMap({
     marker.on("dragend", async () => {
       userHasInteracted.current = true;
       stop();
+      setIsPinConfirmed(false);
       const pos = marker.getLngLat();
       const newLat = pos.lat;
       const newLng = pos.lng;
@@ -515,13 +547,14 @@ export function RealtimeMap({
       const addr = await reverseGeocode(newLat, newLng, isKn);
       setLocationName(addr);
       setLocationVerified(true);
-      onLocationChange?.(addr, newLat, newLng, currentAcc);
+      onLocationChange?.(addr, newLat, newLng, currentAcc, false);
     });
 
     // Map tap/click to reposition pin manually
     map.on("click", async (e) => {
       userHasInteracted.current = true;
       stop();
+      setIsPinConfirmed(false);
       const { lng, lat } = e.lngLat;
       userLocationRef.current = { lat, lng };
       setUserLocation({ lat, lng });
@@ -532,7 +565,7 @@ export function RealtimeMap({
       const addr = await reverseGeocode(lat, lng, isKn);
       setLocationName(addr);
       setLocationVerified(true);
-      onLocationChange?.(addr, lat, lng, currentAcc);
+      onLocationChange?.(addr, lat, lng, currentAcc, false);
     });
 
     // Add accuracy halo on style load
@@ -736,11 +769,13 @@ export function RealtimeMap({
                 <span className="text-slate-400">•</span>
                 <span className="text-slate-300 font-sans">
                   {status === "locating"
-                    ? (isKn ? "ಹುಡುಕಲಾಗುತ್ತಿದೆ..." : "Locating best fix...")
+                    ? (accuracy !== null
+                        ? (isKn ? `ನಿಖರ ಜಿಪಿಎಸ್ ಪಡೆಯಲಾಗುತ್ತಿದೆ… ±${Math.round(accuracy)} m` : `Getting precise GPS… ±${Math.round(accuracy)} m`)
+                        : (isKn ? "ನಿಖರ ಜಿಪಿಎಸ್ ಪಡೆಯಲಾಗುತ್ತಿದೆ…" : "Getting precise GPS…"))
                     : status === "good"
                       ? (isKn ? "ದೃಢೀಕರಿಸಲಾಗಿದೆ" : "GPS Locked")
                       : status === "coarse"
-                        ? (isKn ? "ಅಂದಾಜು ಸ್ಥಳ" : "Approximate Fix")
+                        ? (isKn ? "ಜಿಪಿಎಸ್ ಅಂದಾಜು ಆಗಿದೆ" : "GPS is approximate")
                         : (isKn ? "ಆಯ್ಕೆಮಾಡಿದ ಸೈಟ್" : "Custom Site")}
                 </span>
               </div>
@@ -757,24 +792,38 @@ export function RealtimeMap({
             )}
           </div>
 
-          {/* Requirement 4: Contextual status alerts & instructions */}
+          {/* Requirement 2: While status is "locating", show a live line: "Getting precise GPS… ±{accuracy} m" */}
+          {status === "locating" && (
+            <div className="mt-2.5 rounded-2xl bg-blue-500/20 border border-blue-400/50 p-2.5 flex items-center gap-2 text-blue-200 text-xs font-bold animate-pulse">
+              <IconLoader2 size={16} className="animate-spin text-amber-400 shrink-0" />
+              <span>
+                {accuracy !== null
+                  ? (isKn
+                      ? `ನಿಖರ ಜಿಪಿಎಸ್ ಪಡೆಯಲಾಗುತ್ತಿದೆ… ±${Math.round(accuracy)} m`
+                      : `Getting precise GPS… ±${Math.round(accuracy)} m`)
+                  : (isKn ? "ನಿಖರ ಜಿಪಿಎಸ್ ಪಡೆಯಲಾಗುತ್ತಿದೆ…" : "Getting precise GPS…")}
+              </span>
+            </div>
+          )}
+
+          {/* Requirement 3: If status is "coarse", show "GPS is approximate. Drag the pin to your exact plot, or tap Keep trying", with a Keep trying button that calls start() */}
           {status === "coarse" && (
-            <div className="mt-2.5 rounded-2xl bg-amber-500/15 border border-amber-400/50 p-2.5 flex items-center justify-between gap-2 text-amber-200 text-xs">
+            <div className="mt-2.5 rounded-2xl bg-amber-500/20 border border-amber-400/60 p-3 flex items-center justify-between gap-2.5 text-amber-200 text-xs shadow-lg">
               <div className="flex items-center gap-2 min-w-0">
-                <IconAlertTriangle size={18} className="shrink-0 text-amber-400" />
+                <IconAlertTriangle size={20} className="shrink-0 text-amber-400" />
                 <span className="font-bold leading-snug">
                   {isKn
-                    ? "ಸ್ಥಳ ಅಂದಾಜು ಆಗಿದೆ, ದಯವಿಟ್ಟು ಪಿನ್ ಅನ್ನು ನಿಮ್ಮ ನಿಖರ ಸೈಟ್‌ಗೆ ಎಳೆಯಿರಿ"
-                    : "Location is approximate, please drag the pin to your exact plot"}
+                    ? "ಜಿಪಿಎಸ್ ಅಂದಾಜು ಆಗಿದೆ. ಪಿನ್ ಅನ್ನು ನಿಮ್ಮ ನಿಖರ ಸೈಟ್‌ಗೆ ಎಳೆಯಿರಿ, ಅಥವಾ 'Keep trying' ಒತ್ತಿರಿ"
+                    : "GPS is approximate. Drag the pin to your exact plot, or tap Keep trying"}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={handleLocateMe}
-                className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-400 text-slate-950 font-black text-[11px] hover:bg-amber-300 active:scale-95 transition cursor-pointer"
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#ffb400] text-slate-950 font-black text-xs hover:bg-amber-400 active:scale-95 transition cursor-pointer shadow"
               >
-                <IconRefresh size={12} stroke={3} />
-                <span>{isKn ? "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ" : "Retry"}</span>
+                <IconRefresh size={13} stroke={3} />
+                <span>Keep trying</span>
               </button>
             </div>
           )}
@@ -839,11 +888,13 @@ export function RealtimeMap({
             </div>
           )}
 
-          {/* 2. "Book JCB for this location now" + Yellow Book JCB Button */}
+          {/* Requirement 4: "Confirm location" Action Bar */}
           <div className="mt-3 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-sm sm:text-[15px] font-black text-white leading-snug">
-                {isKn ? "ಈ ಸ್ಥಳಕ್ಕಾಗಿ ಈಗಲೇ ಜೆಸಿಬಿ ಬುಕ್ ಮಾಡಿ" : "Book JCB for this location now"}
+                {isPinConfirmed
+                  ? (isKn ? "ಸ್ಥಳ ದೃಢೀಕರಿಸಲಾಗಿದೆ ✓" : "Location Confirmed ✓")
+                  : (isKn ? "ನಿಮ್ಮ ಸೈಟ್ ಸ್ಥಳವನ್ನು ದೃಢೀಕರಿಸಿ" : "Confirm plot location")}
               </p>
               <div className="flex items-center gap-2 mt-1 text-xs text-slate-300 flex-wrap">
                 <span className="font-bold text-slate-200">
@@ -856,14 +907,14 @@ export function RealtimeMap({
               </div>
             </div>
 
-            {/* Prominent Yellow Book JCB Button */}
+            {/* Requirement 4: Prominent "Confirm location" Button */}
             <button
               type="button"
-              onClick={onConfirmBooking}
+              onClick={handleConfirmLocation}
               className="shrink-0 flex items-center gap-2 rounded-2xl bg-[#ffb400] hover:bg-[#ffa700] px-5 sm:px-6 py-3.5 text-sm font-black uppercase tracking-wider text-[#111827] shadow-xl ring-4 ring-[#ffb400]/40 transition-all active:scale-95 cursor-pointer"
             >
-              <span>{isKn ? "ಜೆಸಿಬಿ ಬುಕ್ ಮಾಡಿ" : "Book JCB"}</span>
-              <IconArrowRight size={17} stroke={3} />
+              <IconCheck size={18} stroke={3} />
+              <span>{isKn ? "ಸ್ಥಳ ದೃಢೀಕರಿಸಿ" : "Confirm location"}</span>
             </button>
           </div>
         </div>

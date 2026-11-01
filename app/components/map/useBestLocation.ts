@@ -28,8 +28,8 @@ type Options = {
  * - Never re-centres anything by itself after it stops.
  */
 export function useBestLocation({
-  goodAccuracy = 30,
-  maxWaitMs = 25000,
+  goodAccuracy = 20,
+  maxWaitMs = 60000,
 }: Options = {}) {
   const [fix, setFix] = useState<Fix | null>(null);
   const [status, setStatus] = useState<LocStatus>("idle");
@@ -84,7 +84,7 @@ export function useBestLocation({
         }
         // TIMEOUT / POSITION_UNAVAILABLE: keep waiting, the overall timer decides.
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 }
     );
 
     timer.current = window.setTimeout(() => {
