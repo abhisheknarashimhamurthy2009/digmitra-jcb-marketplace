@@ -3,7 +3,7 @@ services:
     name: digmitra-jcb-app
     runtime: node
     plan: free
-    buildCommand: pnpm install && pnpm run build
+    buildCommand: npm install -g pnpm && pnpm install && pnpm run build
     startCommand: node server.mjs
     envVars:
       - key: NODE_VERSION

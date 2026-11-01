@@ -2,6 +2,7 @@
   "name": "app",
   "displayName": "App",
   "private": true,
+  "packageManager": "pnpm@10.14.0",
   "description": "Minimal agent-native app starter template.",
   "type": "module",
   "scripts": {
