@@ -189,6 +189,15 @@ export default function IndexRoute() {
   const [selectedJcb, setSelectedJcb] = useState<JcbMachineItem>(AVAILABLE_JCBS[0]);
   const [advancePaymentResult, setAdvancePaymentResult] = useState<AdvancePaymentResult | null>(null);
   const [liveSiteLocation, setLiveSiteLocation] = useState<string>("Kyatasandra, Tumakuru - 572101");
+  const [siteCoordinates, setSiteCoordinates] = useState<{
+    lat: number;
+    lng: number;
+    accuracy?: number | null;
+  }>({
+    lat: 13.3150995,
+    lng: 77.133846,
+    accuracy: null,
+  });
 
   // Handle Estimate Application from Calculator
   const handleApplyEstimate = (data: {
@@ -246,8 +255,9 @@ export default function IndexRoute() {
       customerName: currentUser?.name || "Customer",
       customerPhone: currentUser?.phone || "",
       siteAddress: liveSiteLocation,
-      siteLat: 13.3151,
-      siteLng: 77.1338,
+      siteLat: siteCoordinates.lat,
+      siteLng: siteCoordinates.lng,
+      accuracy: siteCoordinates.accuracy ?? null,
       siteDimension: bookingData?.siteDimension || "30 × 40 ft",
       workType: "plot_cleaning",
       selectedJcbType: (selectedJcb as any).machine || selectedJcb.model,
@@ -324,7 +334,12 @@ export default function IndexRoute() {
                 selectedMachineId={selectedMachineId}
                 onSelectMachine={(machineId) => setSelectedMachineId(machineId)}
                 onConfirmBooking={handleStartBookingDetails}
-                onLocationChange={(addr) => setLiveSiteLocation(addr)}
+                onLocationChange={(addr, lat, lng, acc) => {
+                  setLiveSiteLocation(addr);
+                  if (lat && lng) {
+                    setSiteCoordinates({ lat, lng, accuracy: acc });
+                  }
+                }}
                 estimatedTotal={estimatedGrandTotal}
               />
             </div>
@@ -386,7 +401,12 @@ export default function IndexRoute() {
                 selectedMachineId={selectedMachineId}
                 onSelectMachine={(machineId) => setSelectedMachineId(machineId)}
                 onConfirmBooking={handleStartBookingDetails}
-                onLocationChange={(addr) => setLiveSiteLocation(addr)}
+                onLocationChange={(addr, lat, lng, acc) => {
+                  setLiveSiteLocation(addr);
+                  if (lat && lng) {
+                    setSiteCoordinates({ lat, lng, accuracy: acc });
+                  }
+                }}
                 estimatedTotal={estimatedGrandTotal}
               />
             </div>

@@ -1,26 +1,28 @@
 import {
+  IconAlertTriangle,
   IconArrowRight,
   IconCheck,
-  IconCompass,
   IconCurrentLocation,
   IconLayersSubtract,
   IconLoader2,
+  IconLock,
   IconMapPin,
+  IconRefresh,
   IconSearch,
-  IconSparkles,
-  IconStarFilled,
-  IconTruck,
   IconX,
 } from "@tabler/icons-react";
+import * as maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { fetchVehiclesFromOnlineDb } from "@/lib/supabase";
 import type { SupportedLanguage } from "@/lib/translations";
+import { reverseGeocode, useBestLocation } from "./useBestLocation";
 
 interface RealtimeMapProps {
   selectedLanguage?: SupportedLanguage;
   onSelectMachine?: (machineId: string) => void;
-  onLocationChange?: (address: string, lat: number, lng: number) => void;
+  onLocationChange?: (address: string, lat: number, lng: number, accuracy?: number | null) => void;
   siteAddress?: string;
   fullScreen?: boolean;
   selectedMachineId?: string;
@@ -41,36 +43,58 @@ interface NearbyJcb {
   phone: string;
 }
 
-// Live Windows Hardware Geolocator baseline (13.3150995° N, 77.133846° E)
+// Live baseline default coordinates (Tumakuru / Kyatasandra)
 const DEFAULT_HARDWARE_LAT = 13.3150995;
 const DEFAULT_HARDWARE_LNG = 77.133846;
 
-function loadScript(src: string, id: string): Promise<void> {
-  return new Promise((resolve) => {
-    if (document.getElementById(id)) {
-      resolve();
-      return;
-    }
-    const script = document.createElement("script");
-    script.id = id;
-    script.src = src;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => {
-      console.warn(`Failed to load ${src}`);
-      resolve();
-    };
-    document.body.appendChild(script);
-  });
-}
+const STADIA_KEY =
+  import.meta.env.VITE_STADIA_KEY || "abd1cf7c-c8ca-4b47-a786-de5a7d41aaa6";
+const VECTOR_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 
-function loadStyle(href: string, id: string) {
-  if (document.getElementById(id)) return;
-  const link = document.createElement("link");
-  link.id = id;
-  link.rel = "stylesheet";
-  link.href = href;
-  document.head.appendChild(link);
+const SATELLITE_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    "esri-imagery": {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      attribution: "&copy; Esri, Maxar, Earthstar Geographics",
+    },
+  },
+  layers: [
+    {
+      id: "esri-imagery-layer",
+      type: "raster",
+      source: "esri-imagery",
+      minzoom: 0,
+      maxzoom: 20,
+    },
+  ],
+};
+
+function createGeoJSONCircle(center: [number, number], radiusInMeters: number, points = 64) {
+  const [lng, lat] = center;
+  const km = Math.max(radiusInMeters, 5) / 1000;
+  const coords: [number, number][] = [];
+  const distanceX = km / (111.32 * Math.cos((lat * Math.PI) / 180));
+  const distanceY = km / 110.574;
+  for (let i = 0; i < points; i++) {
+    const theta = (i / points) * (2 * Math.PI);
+    const x = distanceX * Math.cos(theta);
+    const y = distanceY * Math.sin(theta);
+    coords.push([lng + x, lat + y]);
+  }
+  coords.push(coords[0]);
+  return {
+    type: "Feature" as const,
+    properties: {},
+    geometry: {
+      type: "Polygon" as const,
+      coordinates: [coords],
+    },
+  };
 }
 
 export function RealtimeMap({
@@ -84,33 +108,40 @@ export function RealtimeMap({
   estimatedTotal = 2850,
 }: RealtimeMapProps) {
   const isKn = selectedLanguage === "kn";
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const leafletMapRef = useRef<any>(null);
-  const userMarkerRef = useRef<any>(null);
-  const accuracyCircleRef = useRef<any>(null);
-  const jcbMarkersRef = useRef<any[]>([]);
-  const userLocationRef = useRef<{ lat: number; lng: number }>({
-    lat: DEFAULT_HARDWARE_LAT,
-    lng: DEFAULT_HARDWARE_LNG,
-  });
-  const selectedMachineIdRef = useRef<string>(selectedMachineId);
-  selectedMachineIdRef.current = selectedMachineId;
 
-  // User position & site
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const userMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const jcbMarkersRef = useRef<maplibregl.Marker[]>([]);
+
+  // User position & tracking state
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number }>({
     lat: DEFAULT_HARDWARE_LAT,
     lng: DEFAULT_HARDWARE_LNG,
   });
-  const [locationName, setLocationName] = useState(
-    isKn ? "ಲೈವ್ ಸಾಧನದ ಸ್ಥಳವನ್ನು ಪಡೆಯಲಾಗುತ್ತಿದೆ..." : "Detecting live device location..."
+  const userLocationRef = useRef<{ lat: number; lng: number }>({
+    lat: DEFAULT_HARDWARE_LAT,
+    lng: DEFAULT_HARDWARE_LNG,
+  });
+
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const accuracyRef = useRef<number | null>(null);
+  accuracyRef.current = accuracy;
+
+  const [locationName, setLocationName] = useState<string>(
+    siteAddress || (isKn ? "ಲೈವ್ ಸಾಧನದ ಸ್ಥಳವನ್ನು ಹುಡುಕಲಾಗುತ್ತಿದೆ..." : "Detecting live device location...")
   );
   const [locationVerified, setLocationVerified] = useState(false);
-  const [isLocating, setIsLocating] = useState(true);
-  const [activeJcbCount, setActiveJcbCount] = useState(14);
   const [mapStyle, setMapStyle] = useState<"liberty" | "satellite">("liberty");
-  const [showLocationPrompt, setShowLocationPrompt] = useState(true);
-  const [gpsSource, setGpsSource] = useState<string>("Acquiring Live Hardware GPS...");
-  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+
+  // Track if user manually dragged pin or clicked map
+  const userHasInteracted = useRef(false);
+
+  // useBestLocation hook
+  const { fix, status, start, stop } = useBestLocation({
+    goodAccuracy: 30,
+    maxWaitMs: 25000,
+  });
 
   // Search and popular hubs
   const [searchQuery, setSearchQuery] = useState("");
@@ -155,6 +186,170 @@ export function RealtimeMap({
     },
   ];
 
+  // Online vehicles from Supabase database
+  const [onlineVehicles, setOnlineVehicles] = useState<any[]>([]);
+  const onlineVehiclesRef = useRef<any[]>([]);
+  onlineVehiclesRef.current = onlineVehicles;
+
+  useEffect(() => {
+    fetchVehiclesFromOnlineDb().then((vehicles) => {
+      setOnlineVehicles(vehicles || []);
+    });
+  }, []);
+
+  const nearbyJcbs: NearbyJcb[] = onlineVehicles.map((v) => ({
+    id: v.id || v.plate_number,
+    driver: v.operator_name || "Operator",
+    machine: v.vehicle_type || "JCB 3DX",
+    ratePerHour: v.rate_per_hour || 950,
+    lat: v.current_lat || userLocation.lat,
+    lng: v.current_lng || userLocation.lng,
+    distance: "Nearby",
+    eta: "Ready",
+    rating: 5.0,
+    phone: v.operator_phone || "",
+  }));
+
+  const activeSelectedJcb =
+    nearbyJcbs.find((j) => j.id === selectedMachineId) || nearbyJcbs[0] || null;
+
+  // Update GeoJSON accuracy halo circle
+  const updateAccuracyHalo = useCallback((lng: number, lat: number, accMeters: number) => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const source = map.getSource("accuracy-source") as maplibregl.GeoJSONSource | undefined;
+    if (source) {
+      source.setData(createGeoJSONCircle([lng, lat], accMeters));
+    }
+  }, []);
+
+  // Setup Halo layers on MapLibre style load
+  const setupAccuracyHaloLayer = useCallback((lng: number, lat: number, accMeters: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!map.getSource("accuracy-source")) {
+      map.addSource("accuracy-source", {
+        type: "geojson",
+        data: createGeoJSONCircle([lng, lat], accMeters),
+      });
+
+      map.addLayer({
+        id: "accuracy-halo-fill",
+        type: "fill",
+        source: "accuracy-source",
+        paint: {
+          "fill-color": "#3b82f6",
+          "fill-opacity": 0.18,
+        },
+      });
+
+      map.addLayer({
+        id: "accuracy-halo-stroke",
+        type: "line",
+        source: "accuracy-source",
+        paint: {
+          "line-color": "#3b82f6",
+          "line-width": 1.5,
+          "line-opacity": 0.6,
+        },
+      });
+    }
+  }, []);
+
+  // Update JCB Markers on MapLibre map
+  const updateJcbMarkers = useCallback((currentSelectedId: string) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    jcbMarkersRef.current.forEach((m) => m.remove());
+    jcbMarkersRef.current = [];
+
+    onlineVehiclesRef.current.forEach((v) => {
+      const vId = v.id || v.plate_number;
+      const isSelected = vId === currentSelectedId;
+      const vLat = v.current_lat || userLocationRef.current.lat;
+      const vLng = v.current_lng || userLocationRef.current.lng;
+
+      const el = document.createElement("div");
+      el.className = "custom-jcb-pin";
+      el.innerHTML = `
+        <div style="cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: all 0.2s;">
+          <div style="background: ${isSelected ? "#0b3d91" : "#ffb400"}; color: ${isSelected ? "#ffffff" : "#0b3d91"}; font-weight: 900; font-size: 11px; padding: 4px 8px; border-radius: 10px; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.35); display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+            <span style="font-size: 13px;">🚜</span>
+            <span>${v.operator_name || "JCB"}</span>
+          </div>
+          <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid ${isSelected ? "#0b3d91" : "#ffb400"}; margin-top: -1px;"></div>
+        </div>
+      `;
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([vLng, vLat])
+        .addTo(map);
+
+      el.addEventListener("click", () => {
+        onSelectMachine?.(vId);
+      });
+
+      jcbMarkersRef.current.push(marker);
+    });
+  }, [onSelectMachine]);
+
+  // Requirement 1: Start useBestLocation automatically on first load
+  useEffect(() => {
+    start();
+  }, [start]);
+
+  // User taps "Use my current location" / Retry
+  const handleLocateMe = useCallback(() => {
+    userHasInteracted.current = false;
+    setLocationVerified(false);
+    start();
+  }, [start]);
+
+  // Requirement 2: Pin follows hook's fix ONLY while status is "locating"
+  // Once status is "good" or "coarse", or user drags/taps, stop auto-updating the pin.
+  // GPS must NEVER move the pin after a manual drag.
+  useEffect(() => {
+    if (!fix) return;
+    if (userHasInteracted.current) return;
+    if (status !== "locating") return;
+
+    userLocationRef.current = { lat: fix.lat, lng: fix.lng };
+    setUserLocation({ lat: fix.lat, lng: fix.lng });
+    setAccuracy(fix.accuracy);
+
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLngLat([fix.lng, fix.lat]);
+    }
+    updateAccuracyHalo(fix.lng, fix.lat, fix.accuracy);
+
+    if (mapRef.current) {
+      mapRef.current.easeTo({
+        center: [fix.lng, fix.lat],
+        zoom: 16.5,
+        duration: 500,
+      });
+    }
+  }, [fix, status, updateAccuracyHalo]);
+
+  // Requirement 5: Call reverseGeocode() ONLY ONCE when position is confirmed (status becomes good or coarse)
+  useEffect(() => {
+    if (userHasInteracted.current) return;
+    if (status === "good" || status === "coarse") {
+      const targetLat = fix?.lat ?? userLocationRef.current.lat;
+      const targetLng = fix?.lng ?? userLocationRef.current.lng;
+      const targetAcc = fix?.accuracy ?? accuracyRef.current ?? 30;
+
+      setLocationVerified(status === "good");
+      reverseGeocode(targetLat, targetLng, isKn).then((addr) => {
+        setLocationName(addr);
+        onLocationChange?.(addr, targetLat, targetLng, targetAcc);
+      });
+    }
+  }, [status, isKn, fix, onLocationChange]);
+
+  // Search logic
   const performSearch = async (query: string) => {
     if (!query || query.trim().length < 2) {
       setSearchResults([]);
@@ -237,477 +432,145 @@ export function RealtimeMap({
   const handleSelectLocation = async (lat: number, lng: number, customLabel?: string) => {
     setShowSearchDropdown(false);
     setSearchQuery("");
-    setIsLocating(false);
-    setGpsAccuracy(5);
-    const label = customLabel || (isKn ? "ಆಯ್ಕೆಮಾಡಿದ ಸೈಟ್" : "Selected Site Location");
-    setGpsSource(label);
+    userHasInteracted.current = true;
+    stop();
+
+    userLocationRef.current = { lat, lng };
+    setUserLocation({ lat, lng });
+    setAccuracy(10);
     setLocationVerified(true);
-    await applyLocation(lat, lng, true, undefined, 5);
-  };
 
-  const [onlineVehicles, setOnlineVehicles] = useState<any[]>([]);
-  const onlineVehiclesRef = useRef<any[]>([]);
-  onlineVehiclesRef.current = onlineVehicles;
-
-  useEffect(() => {
-    fetchVehiclesFromOnlineDb().then((vehicles) => {
-      setOnlineVehicles(vehicles || []);
-    });
-  }, []);
-
-  const nearbyJcbs: NearbyJcb[] = onlineVehicles.map((v) => ({
-    id: v.id || v.plate_number,
-    driver: v.operator_name || "Operator",
-    machine: v.vehicle_type || "JCB 3DX",
-    ratePerHour: v.rate_per_hour || 950,
-    lat: v.current_lat || userLocation.lat,
-    lng: v.current_lng || userLocation.lng,
-    distance: "Nearby",
-    eta: "Ready",
-    rating: 5.0,
-    phone: v.operator_phone || "",
-  }));
-
-  const activeSelectedJcb =
-    nearbyJcbs.find((j) => j.id === selectedMachineId) || nearbyJcbs[0] || null;
-
-  // Helper to reverse geocode coordinate to exact street / landmark / area / pincode name
-  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-        {
-          headers: {
-            "Accept-Language": isKn ? "kn,en" : "en",
-          },
-        }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const addr = data.address || {};
-        const streetOrLandmark =
-          addr.amenity ||
-          addr.building ||
-          addr.road ||
-          addr.residential ||
-          addr.Interpolated ||
-          addr.hamlet;
-        const locality =
-          addr.neighbourhood ||
-          addr.suburb ||
-          addr.quarter ||
-          addr.village ||
-          addr.town;
-        const city =
-          addr.city ||
-          addr.town ||
-          addr.county ||
-          addr.state_district;
-        const pin = addr.postcode ? `${addr.postcode}` : "";
-
-        const parts = [streetOrLandmark, locality, city].filter(
-          (val, idx, arr) => Boolean(val) && arr.indexOf(val) === idx
-        );
-        if (parts.length > 0) {
-          const base = parts.slice(0, 3).join(", ");
-          return pin ? `${base} - ${pin}` : base;
-        }
-        if (data.display_name) {
-          return data.display_name.split(",").slice(0, 3).join(",").trim();
-        }
-      }
-    } catch {
-      // ignore
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLngLat([lng, lat]);
     }
-    return `${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E`;
+    updateAccuracyHalo(lng, lat, 10);
+
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [lng, lat],
+        zoom: 16.5,
+        essential: true,
+        duration: 1000,
+      });
+    }
+
+    const label = customLabel || (await reverseGeocode(lat, lng, isKn));
+    setLocationName(label);
+    onLocationChange?.(label, lat, lng, 10);
   };
 
-  // Re-draw or update markers on the map
-  const updateMapMarkers = useCallback(
-    (lat: number, lng: number, currentSelectedId: string, accuracyMeters?: number | null) => {
-      const L = (window as any).L;
-      const map = leafletMapRef.current;
-      if (!L || !map) return;
+  // Requirement 6: Pure MapLibre initialization (no Leaflet)
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
 
-      // Update or create live GPS accuracy halo circle
-      const radius = accuracyMeters && accuracyMeters > 10 && accuracyMeters < 300 ? accuracyMeters : 35;
-      if (accuracyCircleRef.current) {
-        accuracyCircleRef.current.setLatLng([lat, lng]);
-        accuracyCircleRef.current.setRadius(radius);
-      } else if (typeof L.circle === "function") {
-        accuracyCircleRef.current = L.circle([lat, lng], {
-          radius,
-          color: "#3b82f6",
-          fillColor: "#3b82f6",
-          fillOpacity: 0.14,
-          weight: 1.5,
-        }).addTo(map);
-      }
+    const initialLng = userLocationRef.current.lng;
+    const initialLat = userLocationRef.current.lat;
 
-      // Update User Site Pin
-      if (userMarkerRef.current) {
-        userMarkerRef.current.setLatLng([lat, lng]);
-      } else {
-        const userIcon = L.divIcon({
-          className: "custom-site-pin",
-          html: `
-            <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-              <div style="position: absolute; width: 44px; height: 44px; background: rgba(16, 185, 129, 0.38); border-radius: 50%; animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-              <div style="width: 30px; height: 30px; background: #0b3d91; border: 3px solid white; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; color: white;">
-                <div style="width: 10px; height: 10px; background: #ffb400; border-radius: 50%;"></div>
-              </div>
-            </div>
-          `,
-          iconSize: [44, 44],
-          iconAnchor: [22, 22],
-        });
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: mapStyle === "satellite" ? SATELLITE_STYLE : VECTOR_STYLE,
+      center: [initialLng, initialLat], // [lng, lat] format
+      zoom: 16.5,
+      attributionControl: false,
+    });
 
-        userMarkerRef.current = L.marker([lat, lng], {
-          icon: userIcon,
-          draggable: true,
-        }).addTo(map);
+    mapRef.current = map;
 
-        userMarkerRef.current.on("dragend", async (e: any) => {
-          const newPos = e.target.getLatLng();
-          userLocationRef.current = { lat: newPos.lat, lng: newPos.lng };
-          setUserLocation({ lat: newPos.lat, lng: newPos.lng });
-          setGpsSource(isKn ? "ಪಿನ್ ಡ್ರಾಪ್ ನಿಖರ ಸ್ಥಳ" : "Manual Pin-Drop Exact Location");
-          setGpsAccuracy(2);
-          const name = await reverseGeocode(newPos.lat, newPos.lng);
-          setLocationName(name);
-          onLocationChange?.(name, newPos.lat, newPos.lng);
-          updateMapMarkers(newPos.lat, newPos.lng, selectedMachineIdRef.current, 2);
-        });
-      }
+    // Create User Site Pin Element
+    const pinEl = document.createElement("div");
+    pinEl.className = "custom-site-pin";
+    pinEl.innerHTML = `
+      <div style="position: relative; display: flex; align-items: center; justify-content: center; cursor: grab;">
+        <div style="position: absolute; width: 44px; height: 44px; background: rgba(16, 185, 129, 0.38); border-radius: 50%; animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+        <div style="width: 32px; height: 32px; background: #0b3d91; border: 3px solid white; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; color: white;">
+          <div style="width: 10px; height: 10px; background: #ffb400; border-radius: 50%;"></div>
+        </div>
+      </div>
+    `;
 
-      // Clear previous JCB markers
-      jcbMarkersRef.current.forEach((m) => m.remove());
-      jcbMarkersRef.current = [];
+    const marker = new maplibregl.Marker({ element: pinEl, draggable: true })
+      .setLngLat([initialLng, initialLat])
+      .addTo(map);
 
-      // Add fresh JCB fleet from online Supabase database if any
-      onlineVehiclesRef.current.forEach((v) => {
-        const vId = v.id || v.plate_number;
-        const isSelected = vId === currentSelectedId;
-        const jcbIcon = L.divIcon({
-          className: "custom-jcb-pin",
-          html: `
-            <div style="cursor: pointer; display: flex; flex-direction: column; align-items: center; transform: translate3d(0,0,0); transition: all 0.2s;">
-              <div style="background: ${isSelected ? "#0b3d91" : "#ffb400"}; color: ${isSelected ? "#ffffff" : "#0b3d91"}; font-weight: 900; font-size: 11px; padding: 4px 8px; border-radius: 10px; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.35); display: flex; align-items: center; gap: 4px; white-space: nowrap;">
-                <span style="font-size: 13px;">🚜</span>
-                <span>${v.operator_name || "JCB"}</span>
-              </div>
-              <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid ${isSelected ? "#0b3d91" : "#ffb400"}; margin-top: -1px;"></div>
-            </div>
-          `,
-          iconSize: [70, 32],
-          iconAnchor: [35, 30],
-        });
+    userMarkerRef.current = marker;
 
-        const vLat = v.current_lat || lat;
-        const vLng = v.current_lng || lng;
-        const marker = L.marker([vLat, vLng], { icon: jcbIcon }).addTo(map);
-        marker.on("click", () => {
-          onSelectMachine?.(vId);
-          updateMapMarkers(lat, lng, vId);
-        });
-        jcbMarkersRef.current.push(marker);
-      });
-    },
-    [onSelectMachine, isKn, onLocationChange]
-  );
+    // Requirement 2: Manual drag stops auto-updating pin. GPS must NEVER move the pin after manual drag.
+    marker.on("dragstart", () => {
+      userHasInteracted.current = true;
+      stop();
+    });
 
-  // Apply new verified location
-  const applyLocation = useCallback(
-    async (lat: number, lng: number, isHighAccuracyGps: boolean, knownName?: string, acc?: number) => {
+    // Requirement 5: Call reverseGeocode() ONLY ONCE when a pin drag ENDS
+    marker.on("dragend", async () => {
+      userHasInteracted.current = true;
+      stop();
+      const pos = marker.getLngLat();
+      const newLat = pos.lat;
+      const newLng = pos.lng;
+      userLocationRef.current = { lat: newLat, lng: newLng };
+      setUserLocation({ lat: newLat, lng: newLng });
+      const currentAcc = accuracyRef.current || 10;
+      updateAccuracyHalo(newLng, newLat, currentAcc);
+
+      const addr = await reverseGeocode(newLat, newLng, isKn);
+      setLocationName(addr);
+      setLocationVerified(true);
+      onLocationChange?.(addr, newLat, newLng, currentAcc);
+    });
+
+    // Map tap/click to reposition pin manually
+    map.on("click", async (e) => {
+      userHasInteracted.current = true;
+      stop();
+      const { lng, lat } = e.lngLat;
       userLocationRef.current = { lat, lng };
       setUserLocation({ lat, lng });
+      marker.setLngLat([lng, lat]);
+      const currentAcc = accuracyRef.current || 10;
+      updateAccuracyHalo(lng, lat, currentAcc);
+
+      const addr = await reverseGeocode(lat, lng, isKn);
+      setLocationName(addr);
       setLocationVerified(true);
-      setIsLocating(false);
+      onLocationChange?.(addr, lat, lng, currentAcc);
+    });
 
-      if (leafletMapRef.current) {
-        leafletMapRef.current.flyTo([lat, lng], 16, {
-          duration: 1.2,
-        });
-      }
+    // Add accuracy halo on style load
+    map.on("load", () => {
+      setupAccuracyHaloLayer(initialLng, initialLat, accuracyRef.current || 30);
+      updateJcbMarkers(selectedMachineId);
+      map.resize();
+    });
 
-      updateMapMarkers(lat, lng, selectedMachineIdRef.current, acc);
-
-      if (knownName) {
-        setLocationName(knownName);
-        onLocationChange?.(knownName, lat, lng);
-      } else {
-        const addrName = await reverseGeocode(lat, lng);
-        setLocationName(addrName);
-        onLocationChange?.(addrName, lat, lng);
-      }
-    },
-    [updateMapMarkers, onLocationChange]
-  );
-
-  // Report device hardware telemetry to backend for verification
-  const reportTelemetry = (coords: {
-    lat: number;
-    lng: number;
-    accuracy?: number;
-    source: string;
-    address?: string;
-    error?: string;
-  }) => {
-    try {
-      fetch("/api/report-location", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...coords,
-          userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-    } catch {}
-  };
-
-  // Main Locate Function: Pinpoints hardware device GPS with multi-tier verification
-  const handleGetLocation = useCallback(() => {
-    setIsLocating(true);
-    setGpsSource(isKn ? "ಲೈವ್ ಜಿಪಿಎಸ್ ಹುಡುಕಲಾಗುತ್ತಿದೆ..." : "Acquiring Live Hardware GPS...");
-
-    const handleFallbackWithoutFakeGps = async (reason: string) => {
-      setIsLocating(false);
-      setGpsAccuracy(null);
-      setGpsSource(
-        isKn
-          ? "ಸ್ಥಳವನ್ನು ಹುಡುಕಿ ಅಥವಾ ನಕ್ಷೆಯಲ್ಲಿ ಗುರುತಿಸಿ"
-          : "Tap Map or Search Below to Pin Site"
-      );
-      reportTelemetry({
-        lat: userLocationRef.current.lat,
-        lng: userLocationRef.current.lng,
-        source: "Geolocation Fallback",
-        error: reason,
-      });
-    };
-
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      handleFallbackWithoutFakeGps("Browser Geolocation API Unavailable");
-      return;
-    }
-
-    // TIER 1: High-Accuracy Satellite GNSS / Hardware GPS Fix
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const rawAcc = pos.coords.accuracy || 8;
-        const acc = Math.round(rawAcc);
-        const addr = await reverseGeocode(lat, lng);
-        setGpsAccuracy(acc);
-        setGpsSource(isKn ? `ಲೈವ್ ಉಪಗ್ರಹ ಜಿಪಿಎಸ್ (±${acc}m)` : `Live Device GPS (±${acc}m)`);
-        reportTelemetry({
-          lat,
-          lng,
-          accuracy: acc,
-          address: addr,
-          source: "Browser Live Hardware Geolocation (High Accuracy)",
-        });
-        await applyLocation(lat, lng, true, addr, acc);
-      },
-      (err1) => {
-        console.warn("High-accuracy hardware GPS attempt:", err1.message);
-        // TIER 2: Fast Cellular / Wi-Fi Triangulation Hardware Fix
-        navigator.geolocation.getCurrentPosition(
-          async (pos2) => {
-            const lat = pos2.coords.latitude;
-            const lng = pos2.coords.longitude;
-            const rawAcc = pos2.coords.accuracy || 15;
-            const acc = Math.round(rawAcc);
-            const addr = await reverseGeocode(lat, lng);
-            setGpsAccuracy(acc);
-            setGpsSource(isKn ? `ಲೈವ್ ನೆಟ್‌ವರ್ಕ್ ಜಿಪಿಎಸ್ (±${acc}m)` : `Live Device Wi-Fi/GPS (±${acc}m)`);
-            reportTelemetry({
-              lat,
-              lng,
-              accuracy: acc,
-              address: addr,
-              source: "Browser Hardware Wi-Fi/Cellular Triangulation",
-            });
-            await applyLocation(lat, lng, true, addr, acc);
-          },
-          async (err2) => {
-            console.warn("Network geolocation fallback:", err2.message);
-            await handleFallbackWithoutFakeGps(`${err1.message} | ${err2.message}`);
-          },
-          {
-            enableHighAccuracy: false,
-            timeout: 15000,
-            maximumAge: 60000,
-          }
-        );
-      },
-      {
-        timeout: 15000,
-        enableHighAccuracy: true,
-        maximumAge: 0,
-      }
-    );
-  }, [applyLocation, isKn]);
-
-  // Auto-acquire live device location when map mounts + continuous real-time watchPosition
-  useEffect(() => {
-    handleGetLocation();
-
-    if (typeof window === "undefined" || !navigator.geolocation) return;
-
-    const watchId = navigator.geolocation.watchPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const rawAcc = pos.coords.accuracy || 6;
-        const acc = rawAcc <= 50 ? Math.round(rawAcc) : 6;
-        setGpsAccuracy(acc);
-        setGpsSource(isKn ? `ಲೈವ್ ಉಪಗ್ರಹ ಜಿಪಿಎಸ್ (±${acc}m)` : `Live Device GPS (±${acc}m)`);
-        const addr = await reverseGeocode(lat, lng);
-        reportTelemetry({
-          lat,
-          lng,
-          accuracy: acc,
-          address: addr,
-          source: "Continuous Hardware watchPosition Stream",
-        });
-        await applyLocation(lat, lng, true, addr, acc);
-      },
-      () => {},
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 15000,
-      }
-    );
-
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
-    };
-  }, [handleGetLocation, applyLocation, isKn]);
-
-  // Update markers when selectedMachineId changes without destroying map
-  useEffect(() => {
-    updateMapMarkers(
-      userLocationRef.current.lat,
-      userLocationRef.current.lng,
-      selectedMachineId,
-      gpsAccuracy
-    );
-  }, [selectedMachineId, updateMapMarkers, gpsAccuracy]);
-
-  // Initialize interactive OpenFreeMap + MapLibre GL Leaflet map
-  useEffect(() => {
-    let isCancelled = false;
-
-    if (typeof window === "undefined" || !mapContainerRef.current) return;
-
-    loadStyle("https://unpkg.com/leaflet/dist/leaflet.css", "leaflet-css");
-    loadStyle("https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css", "maplibre-css");
-
-    const setupMap = async () => {
-      await loadScript("https://unpkg.com/leaflet/dist/leaflet.js", "leaflet-js");
-      await loadScript("https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js", "maplibre-js");
-      await loadScript(
-        "https://unpkg.com/@maplibre/maplibre-gl-leaflet/leaflet-maplibre-gl.js",
-        "maplibre-leaflet-js"
-      );
-
-      if (isCancelled || !mapContainerRef.current) return;
-
-      const L = (window as any).L;
-      if (!L) return;
-
-      // Clean up previous instance
-      if (leafletMapRef.current) {
-        leafletMapRef.current.remove();
-        leafletMapRef.current = null;
-        userMarkerRef.current = null;
-        accuracyCircleRef.current = null;
-        jcbMarkersRef.current = [];
-      }
-
-      const startLat = userLocationRef.current.lat;
-      const startLng = userLocationRef.current.lng;
-
-      // Initialize Leaflet map centered at current live hardware coordinates
-      const map = L.map(mapContainerRef.current, {
-        zoomControl: false,
-        attributionControl: false,
-      }).setView([startLat, startLng], 16);
-
-      leafletMapRef.current = map;
-
-      // Add Stadia Maps Vector style or Satellite
-      const stadiaKey = import.meta.env.VITE_STADIA_KEY || "abd1cf7c-c8ca-4b47-a786-de5a7d41aaa6";
-      if (mapStyle === "satellite") {
-        L.tileLayer(
-          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-          { maxZoom: 19 }
-        ).addTo(map);
-      } else {
-        if (typeof L.maplibreGL === "function") {
-          try {
-            L.maplibreGL({
-              style: `https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=${stadiaKey}`,
-            }).addTo(map);
-          } catch (e) {
-            L.tileLayer(`https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${stadiaKey}`, {
-              maxZoom: 20,
-              attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
-            }).addTo(map);
-          }
-        } else {
-          L.tileLayer(`https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${stadiaKey}`, {
-            maxZoom: 20,
-            attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
-          }).addTo(map);
-        }
-      }
-
-      // Allow clicking on map to reposition site location pin
-      map.on("click", async (e: any) => {
-        const { lat, lng } = e.latlng;
-        setGpsSource(isKn ? "ನಕ್ಷೆ ಆಯ್ಕೆ ಮಾಡಿದ ಸ್ಥಳ" : "Map Tap Exact Location");
-        setGpsAccuracy(2);
-        await applyLocation(lat, lng, false, undefined, 2);
-      });
-
-      // Render markers for current live coordinates (never overwrite with stale defaults)
-      updateMapMarkers(
-        userLocationRef.current.lat,
+    // Re-add accuracy halo layer whenever style changes
+    map.on("style.load", () => {
+      setupAccuracyHaloLayer(
         userLocationRef.current.lng,
-        selectedMachineIdRef.current
+        userLocationRef.current.lat,
+        accuracyRef.current || 30
       );
+    });
 
-      // Invalidate size to ensure crisp rendering
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 200);
-    };
-
-    setupMap();
-
+    // Clean up on unmount
     return () => {
-      isCancelled = true;
-      if (leafletMapRef.current) {
-        leafletMapRef.current.remove();
-        leafletMapRef.current = null;
-        userMarkerRef.current = null;
-        accuracyCircleRef.current = null;
-        jcbMarkersRef.current = [];
-      }
+      map.remove();
+      mapRef.current = null;
+      userMarkerRef.current = null;
+      jcbMarkersRef.current = [];
     };
-  }, [mapStyle]);
+  }, [mapStyle, setupAccuracyHaloLayer, updateAccuracyHalo, updateJcbMarkers, selectedMachineId, stop, isKn, onLocationChange]);
+
+  // Update JCB Markers when selected machine or fleet changes
+  useEffect(() => {
+    updateJcbMarkers(selectedMachineId);
+  }, [selectedMachineId, onlineVehicles, updateJcbMarkers]);
 
   return (
     <div className="relative flex flex-col h-full w-full overflow-hidden rounded-3xl border border-slate-200 bg-slate-900 shadow-xl">
       {/* Floating Top Bar: Search Bar + Map Style Toggle + Popular Hubs */}
       <div
         className="absolute top-3 inset-x-3 flex flex-col gap-2 pointer-events-none"
-        style={{ zIndex: 9999 }}
+        style={{ zIndex: 999 }}
       >
         <div className="flex items-center gap-2 pointer-events-auto">
           {/* Search Bar Input */}
@@ -797,28 +660,28 @@ export function RealtimeMap({
         </div>
       </div>
 
-      {/* Map Viewport Canvas - Takes 100% Full Height & Width without Scrollbar */}
+      {/* Pure MapLibre Map Viewport Canvas */}
       <div
         ref={mapContainerRef}
-        className="h-full w-full flex-1 bg-slate-800 cursor-crosshair"
+        className="h-full w-full flex-1 bg-slate-900 cursor-crosshair"
         style={{ minHeight: "100%", width: "100%" }}
       />
 
-      {/* Pop-up on the FRONT of the Map at Bottom (Full Width Fit to Screen - Enlarged for Clarity) */}
+      {/* Pop-up on the FRONT of the Map at Bottom */}
       <div
         className="absolute bottom-3.5 inset-x-2.5 pointer-events-auto animate-in fade-in slide-in-from-bottom-2"
-        style={{ zIndex: 9999 }}
+        style={{ zIndex: 999 }}
       >
         {/* Floating GPS Button right above the pop-up at the right corner */}
         <div className="flex justify-end mb-2.5 pr-1 pointer-events-none">
           <button
             type="button"
-            onClick={handleGetLocation}
-            disabled={isLocating}
+            onClick={handleLocateMe}
+            disabled={status === "locating"}
             className="pointer-events-auto flex size-12 items-center justify-center rounded-2xl bg-white text-[#0b3d91] shadow-2xl border-2 border-slate-200/90 hover:bg-blue-50 active:scale-90 transition cursor-pointer"
-            title={isKn ? "ಲೈವ್ ಜಿಪಿಎಸ್ ಸ್ಥಳ" : "Locate My Device"}
+            title={isKn ? "ನನ್ನ ಲೈವ್ ಸ್ಥಳವನ್ನು ಹುಡುಕಿ" : "Use my current location"}
           >
-            {isLocating ? (
+            {status === "locating" ? (
               <IconLoader2 size={24} className="animate-spin text-amber-600" />
             ) : (
               <IconCurrentLocation size={24} stroke={2.5} className="text-blue-600" />
@@ -826,9 +689,9 @@ export function RealtimeMap({
           </button>
         </div>
 
-        {/* Pop-up Card - Larger, clearer, highly readable */}
-        <div className="w-full rounded-3xl border-2 border-[#ffb400] bg-slate-950/95 p-4.5 text-white shadow-2xl backdrop-blur-md">
-          {/* 1. Location Row with Live Hardware Coordinates & Accuracy Proof */}
+        {/* Pop-up Card */}
+        <div className="w-full rounded-3xl border-2 border-[#ffb400] bg-slate-950/95 p-4 text-white shadow-2xl backdrop-blur-md">
+          {/* 1. Location Row with Coordinates & Accuracy Badge */}
           <div className="flex items-start gap-2.5 pb-2.5 border-b border-slate-800/80">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#ffb400]/20 text-[#ffb400] mt-0.5">
               <IconMapPin size={18} stroke={2.5} />
@@ -850,24 +713,126 @@ export function RealtimeMap({
                   <span>{isKn ? "ಹುಡುಕಿ" : "Search"}</span>
                 </button>
               </div>
+
+              {/* Requirement 3: Accuracy Badge ±{Math.round(accuracy)} m */}
               <div className="flex items-center gap-1.5 mt-0.5 text-[11px] font-mono font-bold text-emerald-400 flex-wrap">
                 <span className="inline-block size-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span>
                   {userLocation.lat.toFixed(5)}° N, {userLocation.lng.toFixed(5)}° E
                 </span>
+                {accuracy !== null && (
+                  <>
+                    <span className="text-slate-400">•</span>
+                    <span className="text-amber-300 font-sans font-black bg-amber-500/20 px-1.5 py-0.2 rounded border border-amber-400/40">
+                      ±{Math.round(accuracy)} m
+                    </span>
+                  </>
+                )}
                 <span className="text-slate-400">•</span>
-                <span className="text-amber-300 font-sans">
-                  {gpsSource}
+                <span className="text-slate-300 font-sans">
+                  {status === "locating"
+                    ? (isKn ? "ಹುಡುಕಲಾಗುತ್ತಿದೆ..." : "Locating best fix...")
+                    : status === "good"
+                      ? (isKn ? "ದೃಢೀಕರಿಸಲಾಗಿದೆ" : "GPS Locked")
+                      : status === "coarse"
+                        ? (isKn ? "ಅಂದಾಜು ಸ್ಥಳ" : "Approximate Fix")
+                        : (isKn ? "ಆಯ್ಕೆಮಾಡಿದ ಸೈಟ್" : "Custom Site")}
                 </span>
               </div>
             </div>
+
             {locationVerified && (
-              <span className="shrink-0 flex items-center gap-1 text-xs font-black text-emerald-400 bg-emerald-950/70 border border-emerald-500/40 px-2.5 py-1 rounded-full shadow-sm" title="Location Live Verified">
+              <span
+                className="shrink-0 flex items-center gap-1 text-xs font-black text-emerald-400 bg-emerald-950/70 border border-emerald-500/40 px-2.5 py-1 rounded-full shadow-sm"
+                title="Location Live Verified"
+              >
                 <IconCheck size={14} stroke={3} />
                 <span>{isKn ? "ದೃಢೀಕರಿಸಲಾಗಿದೆ" : "Live"}</span>
               </span>
             )}
           </div>
+
+          {/* Requirement 4: Contextual status alerts & instructions */}
+          {status === "coarse" && (
+            <div className="mt-2.5 rounded-2xl bg-amber-500/15 border border-amber-400/50 p-2.5 flex items-center justify-between gap-2 text-amber-200 text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <IconAlertTriangle size={18} className="shrink-0 text-amber-400" />
+                <span className="font-bold leading-snug">
+                  {isKn
+                    ? "ಸ್ಥಳ ಅಂದಾಜು ಆಗಿದೆ, ದಯವಿಟ್ಟು ಪಿನ್ ಅನ್ನು ನಿಮ್ಮ ನಿಖರ ಸೈಟ್‌ಗೆ ಎಳೆಯಿರಿ"
+                    : "Location is approximate, please drag the pin to your exact plot"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleLocateMe}
+                className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-400 text-slate-950 font-black text-[11px] hover:bg-amber-300 active:scale-95 transition cursor-pointer"
+              >
+                <IconRefresh size={12} stroke={3} />
+                <span>{isKn ? "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ" : "Retry"}</span>
+              </button>
+            </div>
+          )}
+
+          {status === "denied" && (
+            <div className="mt-2.5 rounded-2xl bg-rose-500/15 border border-rose-400/50 p-3 text-rose-200 text-xs space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-black text-rose-300">
+                  <IconLock size={15} />
+                  <span>{isKn ? "ಸ್ಥಳ ಅನುಮತಿ ನಿರಾಕರಿಸಲಾಗಿದೆ" : "Location Permission Blocked"}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLocateMe}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-400 text-slate-950 font-black text-[10px] hover:bg-rose-300 active:scale-95 transition cursor-pointer"
+                >
+                  <IconRefresh size={11} stroke={3} />
+                  <span>{isKn ? "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ" : "Retry"}</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-rose-100 font-medium leading-relaxed">
+                {isKn
+                  ? "ದಯವಿಟ್ಟು ಬ್ರೌಸರ್ ವಿಳಾಸ ಪಟ್ಟಿಯಲ್ಲಿ ಲಾಕ್ ಐಕಾನ್ (🔒) ➔ Site settings ➔ Location ➔ Allow ಮಾಡಿ."
+                  : "Tap the lock icon (🔒) in the browser address bar ➔ Site settings ➔ Location ➔ Allow."}
+              </p>
+            </div>
+          )}
+
+          {status === "insecure" && (
+            <div className="mt-2.5 rounded-2xl bg-amber-500/15 border border-amber-400/50 p-2.5 flex items-center justify-between gap-2 text-amber-200 text-xs">
+              <span className="font-bold leading-tight">
+                {isKn
+                  ? "ಅಸುರಕ್ಷಿತ ಸಂಪರ್ಕ. ಜಿಪಿಎಸ್ ಪ್ರವೇಶಿಸಲು HTTPS ಅಗತ್ಯವಿದೆ."
+                  : "Insecure connection. HTTPS is required to access hardware GPS."}
+              </span>
+              <button
+                type="button"
+                onClick={handleLocateMe}
+                className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-400 text-slate-950 font-black text-[11px] hover:bg-amber-300 active:scale-95 transition cursor-pointer"
+              >
+                <IconRefresh size={12} stroke={3} />
+                <span>{isKn ? "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ" : "Retry"}</span>
+              </button>
+            </div>
+          )}
+
+          {status === "unavailable" && (
+            <div className="mt-2.5 rounded-2xl bg-slate-800/90 border border-slate-700 p-2.5 flex items-center justify-between gap-2 text-slate-300 text-xs">
+              <span className="font-medium leading-tight">
+                {isKn
+                  ? "ಜಿಪಿಎಸ್ ಲಭ್ಯವಿಲ್ಲ. ಸಾಧನದ ಸ್ಥಳ ಆನ್ ಮಾಡಿ ಅಥವಾ ಕೆಳಗೆ ಹುಡುಕಿ."
+                  : "Location unavailable. Please check device GPS or search plot below."}
+              </span>
+              <button
+                type="button"
+                onClick={handleLocateMe}
+                className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-400 text-slate-950 font-black text-[11px] hover:bg-amber-300 active:scale-95 transition cursor-pointer"
+              >
+                <IconRefresh size={12} stroke={3} />
+                <span>{isKn ? "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ" : "Retry"}</span>
+              </button>
+            </div>
+          )}
 
           {/* 2. "Book JCB for this location now" + Yellow Book JCB Button */}
           <div className="mt-3 flex items-center justify-between gap-3">
@@ -886,7 +851,7 @@ export function RealtimeMap({
               </div>
             </div>
 
-            {/* Enlarged Prominent Yellow Book JCB Button */}
+            {/* Prominent Yellow Book JCB Button */}
             <button
               type="button"
               onClick={onConfirmBooking}
