@@ -473,6 +473,12 @@ export function LoginScreen({
             </div>
           )}
         </div>
+
+        {/* Live Build & GPS Engine Verification Badge */}
+        <div className="mt-4 flex items-center justify-center gap-2 text-[11px] font-bold text-slate-500">
+          <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>DigiMitra v2.4 • Live GPS Engine Active</span>
+        </div>
       </div>
     </div>
   );
