@@ -698,8 +698,13 @@ export function RealtimeMap({
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
-                <div className="truncate text-sm sm:text-base font-black text-slate-100">
-                  {locationName}
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="truncate text-sm sm:text-base font-black text-slate-100">
+                    {locationName}
+                  </div>
+                  <span className="shrink-0 text-[10px] font-black uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded-md shadow-sm">
+                    v2.4 Live GPS
+                  </span>
                 </div>
                 <button
                   type="button"

@@ -78,7 +78,9 @@ const server = http.createServer(async (req, res) => {
       if (pathname.startsWith("/assets/")) {
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       } else {
-        res.setHeader("Cache-Control", "public, max-age=3600");
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
       }
       fs.createReadStream(filePath).pipe(res);
       return;
@@ -115,6 +117,11 @@ const server = http.createServer(async (req, res) => {
     for (const [key, val] of webResponse.headers.entries()) {
       res.setHeader(key, val);
     }
+
+    // Always enforce fresh SSR HTML delivery for live deployments
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
 
     if (webResponse.body) {
       Readable.fromWeb(webResponse.body).pipe(res);
