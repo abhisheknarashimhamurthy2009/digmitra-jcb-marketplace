@@ -16,5 +16,11 @@ services:
         value: "https://avavshltiiafnxdzrvza.supabase.co"
       - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
         value: "sb_publishable_78ELo6p9i6jB6R5S-g7ecw_IdXkirql"
+      - key: VITE_MAPS_API_KEY
+        value: "AIzaSyC5JJM7bF0mew4Q0Nofyou61GRKxmSOUmY"
+      - key: VITE_STADIA_KEY
+        value: "AIzaSyC5JJM7bF0mew4Q0Nofyou61GRKxmSOUmY"
+      - key: VITE_GOOGLE_MAPS_API_KEY
+        value: "AIzaSyC5JJM7bF0mew4Q0Nofyou61GRKxmSOUmY"
       - key: DATABASE_URL
         sync: false

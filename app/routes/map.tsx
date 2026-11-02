@@ -1,16 +1,16 @@
-import MapView from "@/components/map/MapView";
+import { RealtimeMap } from "@/components/map/realtime-map";
 
 export function meta() {
   return [
-    { title: "Stadia Map View | JCB Booking Marketplace" },
-    { name: "description", content: "Interactive Stadia Maps MapView" },
+    { title: "Realtime Map | DigiMitra JCB Booking Marketplace" },
+    { name: "description", content: "High-precision satellite realtime map" },
   ];
 }
 
 export default function MapRoute() {
   return (
     <div className="h-[100dvh] w-full overflow-hidden">
-      <MapView />
+      <RealtimeMap fullScreen />
     </div>
   );
 }

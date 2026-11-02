@@ -3,7 +3,9 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useBestLocation } from "./useBestLocation";
 
 const STADIA_KEY =
-  import.meta.env.VITE_STADIA_KEY || "abd1cf7c-c8ca-4b47-a786-de5a7d41aaa6";
+  import.meta.env.VITE_MAPS_API_KEY ||
+  import.meta.env.VITE_STADIA_KEY ||
+  "AIzaSyC5JJM7bF0mew4Q0Nofyou61GRKxmSOUmY";
 const STYLE_URL = `https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=${STADIA_KEY}`;
 
 // Verified Exact Kyatasandra / Tumakuru Site Coordinates

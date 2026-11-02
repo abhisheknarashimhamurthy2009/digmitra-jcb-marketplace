@@ -307,14 +307,12 @@ export function LiveTrackingScreen({
       });
       leafletMapRef.current = map;
 
-      // Primary High-Reliability Road Layer: Stadia Maps (Alidade Smooth)
-      const stadiaKey = import.meta.env.VITE_STADIA_KEY || "abd1cf7c-c8ca-4b47-a786-de5a7d41aaa6";
+      // Primary High-Reliability Tile Layer (OpenStreetMap / Esri World Imagery fallback)
       L.tileLayer(
-        `https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?api_key=${stadiaKey}`,
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         {
-          maxZoom: 20,
-          attribution:
-            '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap contributors',
         }
       ).addTo(map);
 

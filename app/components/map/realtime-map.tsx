@@ -60,7 +60,9 @@ const DEFAULT_HARDWARE_LAT = 13.3150995;
 const DEFAULT_HARDWARE_LNG = 77.133846;
 
 const STADIA_KEY =
-  import.meta.env.VITE_STADIA_KEY || "abd1cf7c-c8ca-4b47-a786-de5a7d41aaa6";
+  import.meta.env.VITE_MAPS_API_KEY ||
+  import.meta.env.VITE_STADIA_KEY ||
+  "AIzaSyC5JJM7bF0mew4Q0Nofyou61GRKxmSOUmY";
 const VECTOR_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 
 const SATELLITE_STYLE: maplibregl.StyleSpecification = {
