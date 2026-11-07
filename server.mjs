@@ -8,9 +8,14 @@ import { createRequestHandler } from "react-router";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = path.resolve(__dirname, "build/client");
 
-// Load the compiled React Router server bundle
-const build = await import("./build/server/index.js");
-const handleRequest = createRequestHandler(build, "production");
+// Load the compiled React Router server bundle (if available)
+let handleRequest = null;
+try {
+  const build = await import("./build/server/index.js");
+  handleRequest = createRequestHandler(build, "production");
+} catch {
+  // In development mode, Vite handles request routing directly
+}
 
 const MIME_TYPES = {
   ".html": "text/html",
@@ -108,6 +113,12 @@ const server = http.createServer(async (req, res) => {
       init.duplex = "half";
     }
 
+    if (!handleRequest) {
+      res.statusCode = 503;
+      res.end("Production build not found. Run 'npm run build' first or use 'npm run dev' for development.");
+      return;
+    }
+
     const webRequest = new Request(url.href, init);
     const webResponse = await handleRequest(webRequest);
 
@@ -135,7 +146,29 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 DigMitra Production Server listening on http://0.0.0.0:${PORT}`);
-});
+const isDirectExecution =
+  process.argv[1] &&
+  (path.resolve(process.argv[1]) === fileURLToPath(import.meta.url) ||
+    process.argv[1].endsWith("server.mjs"));
+
+const isViteDev =
+  process.env.npm_lifecycle_event === "dev" ||
+  Boolean(process.env.VITE);
+
+if (isDirectExecution && !isViteDev) {
+  const PORT = process.env.PORT || 10000;
+
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.warn(`⚠️ [server] Port ${PORT} already in use; skipping duplicate listen.`);
+    } else {
+      console.error("Server error:", err);
+    }
+  });
+
+  server.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 DigMitra Production Server listening on http://0.0.0.0:${PORT}`);
+  });
+}
+
+export default server;

@@ -44,6 +44,12 @@ import {
   fetchVehiclesFromOnlineDb,
 } from "@/lib/supabase";
 
+const GOOGLE_MAPS_KEY =
+  import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
+  import.meta.env.VITE_MAPS_API_KEY ||
+  import.meta.env.VITE_STADIA_KEY ||
+  "AIzaSyC5JJM7bF0mew4Q0Nofyou61GRKxmSOUmY";
+
 interface OwnerDashboardProps {
   user: AuthUser;
   selectedLanguage: SupportedLanguage;
@@ -262,17 +268,17 @@ export function OwnerDashboard({
       });
       leafletMapRef.current = map;
 
-      // Base tile layer
+      // Base Google Maps tile layer
       const streetLayer = L.tileLayer(
-        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
         {
-          maxZoom: 19,
-          attribution: '&copy; OpenStreetMap contributors',
+          maxZoom: 20,
+          attribution: '&copy; Google Maps',
         }
       );
       const satelliteLayer = L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        { maxZoom: 19 }
+        `https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        { maxZoom: 20, attribution: '&copy; Google Maps' }
       );
 
       if (mapStyle === "satellite") {

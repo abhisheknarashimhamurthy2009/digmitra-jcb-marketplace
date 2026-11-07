@@ -2,11 +2,37 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useBestLocation } from "./useBestLocation";
 
-const STADIA_KEY =
+const GOOGLE_MAPS_KEY =
+  import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
   import.meta.env.VITE_MAPS_API_KEY ||
   import.meta.env.VITE_STADIA_KEY ||
   "AIzaSyC5JJM7bF0mew4Q0Nofyou61GRKxmSOUmY";
-const STYLE_URL = `https://tiles.stadiamaps.com/styles/alidade_smooth.json?api_key=${STADIA_KEY}`;
+
+const GOOGLE_SATELLITE_STYLE: any = {
+  version: 8,
+  sources: {
+    "google-satellite": {
+      type: "raster",
+      tiles: [
+        `https://mt0.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt2.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt3.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+      ],
+      tileSize: 256,
+      attribution: "&copy; Google Maps",
+    },
+  },
+  layers: [
+    {
+      id: "google-satellite-layer",
+      type: "raster",
+      source: "google-satellite",
+      minzoom: 0,
+      maxzoom: 22,
+    },
+  ],
+};
 
 // Verified Exact Kyatasandra / Tumakuru Site Coordinates
 const DEFAULT_LAT = 13.312278;
@@ -172,7 +198,7 @@ export default function MapView({
           zoom: initialZoom,
         }}
         style={style}
-        mapStyle={STYLE_URL}
+        mapStyle={GOOGLE_SATELLITE_STYLE}
         onClick={(e: any) => {
           const { lng, lat } = e.lngLat;
           setLiveLocation((prev) => ({

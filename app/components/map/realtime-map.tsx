@@ -59,31 +59,64 @@ interface NearbyJcb {
 const DEFAULT_HARDWARE_LAT = 13.3150995;
 const DEFAULT_HARDWARE_LNG = 77.133846;
 
-const STADIA_KEY =
+const GOOGLE_MAPS_KEY =
+  import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
   import.meta.env.VITE_MAPS_API_KEY ||
   import.meta.env.VITE_STADIA_KEY ||
   "AIzaSyC5JJM7bF0mew4Q0Nofyou61GRKxmSOUmY";
-const VECTOR_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 
+// Google Maps Satellite Hybrid (Google Satellite Imagery + Roads & Labels)
 const SATELLITE_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    "esri-imagery": {
+    "google-satellite-hybrid": {
       type: "raster",
       tiles: [
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        `https://mt0.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt2.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt3.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
       ],
       tileSize: 256,
-      attribution: "&copy; Esri, Maxar, Earthstar Geographics",
+      attribution: "&copy; Google Maps",
+      maxzoom: 22,
     },
   },
   layers: [
     {
-      id: "esri-imagery-layer",
+      id: "google-satellite-hybrid-layer",
       type: "raster",
-      source: "esri-imagery",
+      source: "google-satellite-hybrid",
       minzoom: 0,
-      maxzoom: 20,
+      maxzoom: 22,
+    },
+  ],
+};
+
+// Google Maps Roadmap (Streets, Highways & Buildings)
+const VECTOR_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    "google-streets": {
+      type: "raster",
+      tiles: [
+        `https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt2.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt3.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+      ],
+      tileSize: 256,
+      attribution: "&copy; Google Maps",
+      maxzoom: 22,
+    },
+  },
+  layers: [
+    {
+      id: "google-streets-layer",
+      type: "raster",
+      source: "google-streets",
+      minzoom: 0,
+      maxzoom: 22,
     },
   ],
 };
@@ -504,6 +537,7 @@ export function RealtimeMap({
       style: mapStyle === "satellite" ? SATELLITE_STYLE : VECTOR_STYLE,
       center: [initialLng, initialLat], // [lng, lat] format
       zoom: 18,
+      maxZoom: 22,
       attributionControl: false,
     });
 
@@ -667,15 +701,15 @@ export function RealtimeMap({
             )}
           </div>
 
-          {/* Map View Toggle (Vector / Satellite) */}
+          {/* Map View Toggle (Google Streets / Google Satellite) */}
           <button
             type="button"
             onClick={() => setMapStyle(mapStyle === "liberty" ? "satellite" : "liberty")}
             className="shrink-0 flex items-center gap-1.5 rounded-2xl bg-slate-950/95 backdrop-blur-md border border-slate-700/80 px-3 py-2.5 text-xs font-bold text-slate-200 shadow-xl hover:bg-slate-900 active:scale-95 transition cursor-pointer"
-            title="Toggle Satellite / Vector View"
+            title="Toggle Google Satellite / Google Streets"
           >
             <IconLayersSubtract size={16} className="text-[#ffb400]" />
-            <span className="hidden sm:inline">{mapStyle === "liberty" ? "Satellite" : "Vector"}</span>
+            <span className="hidden sm:inline">{mapStyle === "liberty" ? "Google Satellite" : "Google Streets"}</span>
           </button>
         </div>
 
@@ -738,7 +772,7 @@ export function RealtimeMap({
                     {locationName}
                   </div>
                   <span className="shrink-0 text-[10px] font-black uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded-md shadow-sm">
-                    v2.4 Live GPS
+                    Google Maps • v2.4 Live GPS
                   </span>
                 </div>
                 <button

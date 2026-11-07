@@ -24,6 +24,12 @@ import {
   VEHICLE_ROAD_ROUTES,
 } from "@/lib/turn-by-turn-routes";
 
+const GOOGLE_MAPS_KEY =
+  import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
+  import.meta.env.VITE_MAPS_API_KEY ||
+  import.meta.env.VITE_STADIA_KEY ||
+  "AIzaSyC5JJM7bF0mew4Q0Nofyou61GRKxmSOUmY";
+
 interface LiveTrackingScreenProps {
   selectedLanguage: SupportedLanguage;
   bookingId: string;
@@ -307,12 +313,12 @@ export function LiveTrackingScreen({
       });
       leafletMapRef.current = map;
 
-      // Primary High-Reliability Tile Layer (OpenStreetMap / Esri World Imagery fallback)
+      // Primary Google Maps Tile Layer with Key
       L.tileLayer(
-        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
         {
-          maxZoom: 19,
-          attribution: '&copy; OpenStreetMap contributors',
+          maxZoom: 20,
+          attribution: '&copy; Google Maps',
         }
       ).addTo(map);
 
