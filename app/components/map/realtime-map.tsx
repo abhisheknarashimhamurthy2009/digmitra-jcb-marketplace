@@ -65,30 +65,51 @@ const GOOGLE_MAPS_KEY =
   import.meta.env.VITE_STADIA_KEY ||
   "AIzaSyC5JJM7bF0mew4Q0Nofyou61GRKxmSOUmY";
 
-// Google Maps Satellite Hybrid (Google Satellite Imagery + Roads & Labels)
+// Google Maps Satellite Hybrid (Fast Base Satellite + Google Roads & Labels)
 const SATELLITE_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
+    "base-satellite": {
+      type: "raster",
+      tiles: [
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      ],
+      tileSize: 256,
+      maxzoom: 19,
+    },
     "google-satellite-hybrid": {
       type: "raster",
       tiles: [
-        `https://mt0.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
-        `https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
-        `https://mt2.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
-        `https://mt3.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt0.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt1.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt2.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt3.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
       ],
       tileSize: 256,
       attribution: "&copy; Google Maps",
-      maxzoom: 22,
+      maxzoom: 20,
     },
   },
   layers: [
+    {
+      id: "base-satellite-layer",
+      type: "raster",
+      source: "base-satellite",
+      minzoom: 0,
+      maxzoom: 20,
+      paint: {
+        "raster-fade-duration": 100,
+      },
+    },
     {
       id: "google-satellite-hybrid-layer",
       type: "raster",
       source: "google-satellite-hybrid",
       minzoom: 0,
-      maxzoom: 22,
+      maxzoom: 20,
+      paint: {
+        "raster-fade-duration": 150,
+      },
     },
   ],
 };
@@ -100,14 +121,14 @@ const VECTOR_STYLE: maplibregl.StyleSpecification = {
     "google-streets": {
       type: "raster",
       tiles: [
-        `https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
-        `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
-        `https://mt2.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
-        `https://mt3.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt1.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt2.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
+        `https://mt3.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}&key=${GOOGLE_MAPS_KEY}`,
       ],
       tileSize: 256,
       attribution: "&copy; Google Maps",
-      maxzoom: 22,
+      maxzoom: 20,
     },
   },
   layers: [
@@ -116,7 +137,10 @@ const VECTOR_STYLE: maplibregl.StyleSpecification = {
       type: "raster",
       source: "google-streets",
       minzoom: 0,
-      maxzoom: 22,
+      maxzoom: 20,
+      paint: {
+        "raster-fade-duration": 150,
+      },
     },
   ],
 };
@@ -184,11 +208,12 @@ export function RealtimeMap({
 
   // Track if user manually dragged pin or clicked map
   const userHasInteracted = useRef(false);
+  const hasCenteredInitially = useRef(false);
 
-  // Requirement 1: useBestLocation({ goodAccuracy: 20, maxWaitMs: 60000 })
+  // Requirement 1: useBestLocation({ goodAccuracy: 25, maxWaitMs: 8000 })
   const { fix, status, start, stop } = useBestLocation({
-    goodAccuracy: 20,
-    maxWaitMs: 60000,
+    goodAccuracy: 25,
+    maxWaitMs: 8000,
   });
 
   // Search and popular hubs
@@ -351,6 +376,7 @@ export function RealtimeMap({
   // User taps "Use my current location" / Keep trying
   const handleLocateMe = useCallback(() => {
     userHasInteracted.current = false;
+    hasCenteredInitially.current = false;
     setIsPinConfirmed(false);
     setLocationVerified(false);
     start();
@@ -376,26 +402,41 @@ export function RealtimeMap({
   // Requirement 2: Pin follows hook's fix ONLY while status is "locating"
   // Once status is "good" or "coarse", or user drags/taps, stop auto-updating the pin.
   // GPS must NEVER move the pin after a manual drag.
+  // Filters out micro-jitter noise so the pointer NEVER vibrates or glitches.
   useEffect(() => {
     if (!fix) return;
     if (userHasInteracted.current) return;
     if (status !== "locating") return;
 
-    userLocationRef.current = { lat: fix.lat, lng: fix.lng };
-    setUserLocation({ lat: fix.lat, lng: fix.lng });
-    setAccuracy(fix.accuracy);
+    const prevLat = userLocationRef.current.lat;
+    const prevLng = userLocationRef.current.lng;
+    const deltaMeters = Math.hypot(fix.lat - prevLat, fix.lng - prevLng) * 111139;
 
-    if (userMarkerRef.current) {
-      userMarkerRef.current.setLngLat([fix.lng, fix.lat]);
-    }
-    updateAccuracyHalo(fix.lng, fix.lat, fix.accuracy);
+    if (!hasCenteredInitially.current || deltaMeters >= 2) {
+      userLocationRef.current = { lat: fix.lat, lng: fix.lng };
+      setUserLocation({ lat: fix.lat, lng: fix.lng });
+      setAccuracy(fix.accuracy);
 
-    if (mapRef.current) {
-      mapRef.current.easeTo({
-        center: [fix.lng, fix.lat],
-        zoom: 18,
-        duration: 500,
-      });
+      if (userMarkerRef.current) {
+        userMarkerRef.current.setLngLat([fix.lng, fix.lat]);
+      }
+      updateAccuracyHalo(fix.lng, fix.lat, fix.accuracy);
+
+      if (mapRef.current) {
+        if (!hasCenteredInitially.current) {
+          hasCenteredInitially.current = true;
+          mapRef.current.flyTo({
+            center: [fix.lng, fix.lat],
+            zoom: 18,
+            duration: 600,
+          });
+        } else if (deltaMeters >= 12) {
+          mapRef.current.easeTo({
+            center: [fix.lng, fix.lat],
+            duration: 350,
+          });
+        }
+      }
     }
   }, [fix, status, updateAccuracyHalo]);
 
@@ -537,20 +578,20 @@ export function RealtimeMap({
       style: mapStyle === "satellite" ? SATELLITE_STYLE : VECTOR_STYLE,
       center: [initialLng, initialLat], // [lng, lat] format
       zoom: 18,
-      maxZoom: 22,
+      maxZoom: 20,
       attributionControl: false,
     });
 
     mapRef.current = map;
 
-    // Create User Site Pin Element
+    // Create User Site Pin Element (Zero-jitter, GPU-accelerated styling)
     const pinEl = document.createElement("div");
     pinEl.className = "custom-site-pin";
     pinEl.innerHTML = `
-      <div style="position: relative; display: flex; align-items: center; justify-content: center; cursor: grab;">
-        <div style="position: absolute; width: 44px; height: 44px; background: rgba(16, 185, 129, 0.38); border-radius: 50%; animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-        <div style="width: 32px; height: 32px; background: #0b3d91; border: 3px solid white; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; color: white;">
-          <div style="width: 10px; height: 10px; background: #ffb400; border-radius: 50%;"></div>
+      <div style="position: relative; display: flex; align-items: center; justify-content: center; cursor: grab; transform: translate3d(0,0,0); will-change: transform;">
+        <div style="position: absolute; width: 42px; height: 42px; background: rgba(16, 185, 129, 0.22); border: 2px solid rgba(16, 185, 129, 0.65); border-radius: 50%;"></div>
+        <div style="position: relative; width: 30px; height: 30px; background: #0b3d91; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;">
+          <div style="width: 10px; height: 10px; background: #ffb400; border-radius: 50%; box-shadow: 0 0 6px #ffb400;"></div>
         </div>
       </div>
     `;
@@ -760,72 +801,56 @@ export function RealtimeMap({
 
         {/* Pop-up Card */}
         <div className="w-full rounded-3xl border-2 border-[#ffb400] bg-slate-950/95 p-4 text-white shadow-2xl backdrop-blur-md">
-          {/* 1. Location Row with Coordinates & Accuracy Badge */}
-          <div className="flex items-start gap-2.5 pb-2.5 border-b border-slate-800/80">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#ffb400]/20 text-[#ffb400] mt-0.5">
-              <IconMapPin size={18} stroke={2.5} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="truncate text-sm sm:text-base font-black text-slate-100">
-                    {locationName}
-                  </div>
-                  <span className="shrink-0 text-[10px] font-black uppercase tracking-wider bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded-md shadow-sm">
-                    Google Maps • v2.4 Live GPS
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    searchInputRef.current?.focus();
-                    setShowSearchDropdown(true);
-                  }}
-                  className="shrink-0 flex items-center gap-1 text-[11px] font-bold text-[#ffb400] hover:underline bg-[#ffb400]/10 border border-[#ffb400]/30 px-2 py-0.5 rounded-lg transition cursor-pointer"
-                >
-                  <IconSearch size={12} />
-                  <span>{isKn ? "ಹುಡುಕಿ" : "Search"}</span>
-                </button>
-              </div>
-
-              {/* Requirement 3: Accuracy Badge ±{Math.round(accuracy)} m */}
-              <div className="flex items-center gap-1.5 mt-0.5 text-[11px] font-mono font-bold text-emerald-400 flex-wrap">
-                <span className="inline-block size-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>
-                  {userLocation.lat.toFixed(5)}° N, {userLocation.lng.toFixed(5)}° E
-                </span>
-                {accuracy !== null && (
-                  <>
-                    <span className="text-slate-400">•</span>
-                    <span className="text-amber-300 font-sans font-black bg-amber-500/20 px-1.5 py-0.2 rounded border border-amber-400/40">
-                      ±{Math.round(accuracy)} m
-                    </span>
-                  </>
-                )}
-                <span className="text-slate-400">•</span>
-                <span className="text-slate-300 font-sans">
-                  {status === "locating"
-                    ? (accuracy !== null
-                        ? (isKn ? `ನಿಖರ ಜಿಪಿಎಸ್ ಪಡೆಯಲಾಗುತ್ತಿದೆ… ±${Math.round(accuracy)} m` : `Getting precise GPS… ±${Math.round(accuracy)} m`)
-                        : (isKn ? "ನಿಖರ ಜಿಪಿಎಸ್ ಪಡೆಯಲಾಗುತ್ತಿದೆ…" : "Getting precise GPS…"))
-                    : status === "good"
-                      ? (isKn ? "ದೃಢೀಕರಿಸಲಾಗಿದೆ" : "GPS Locked")
-                      : status === "coarse"
-                        ? (isKn ? "ಜಿಪಿಎಸ್ ಅಂದಾಜು ಆಗಿದೆ" : "GPS is approximate")
-                        : (isKn ? "ಆಯ್ಕೆಮಾಡಿದ ಸೈಟ್" : "Custom Site")}
-                </span>
-              </div>
-            </div>
-
-            {locationVerified && (
-              <span
-                className="shrink-0 flex items-center gap-1 text-xs font-black text-emerald-400 bg-emerald-950/70 border border-emerald-500/40 px-2.5 py-1 rounded-full shadow-sm"
-                title="Location Live Verified"
-              >
-                <IconCheck size={14} stroke={3} />
-                <span>{isKn ? "ದೃಢೀಕರಿಸಲಾಗಿದೆ" : "Live"}</span>
+          {/* 1. Location Header Row: Name & Live Badge */}
+          <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800/80">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[#ffb400]/20 text-[#ffb400]">
+                <IconMapPin size={16} stroke={2.5} />
               </span>
+              <span className="truncate text-sm sm:text-base font-black text-slate-100">
+                {locationName || (isKn ? "ಸೈಟ್ ಸ್ಥಳವನ್ನು ಗುರುತಿಸಲಾಗುತ್ತಿದೆ…" : "Pinning Site Location…")}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Google Maps</span>
+              </span>
+              {locationVerified && (
+                <span
+                  className="flex items-center gap-1 text-[11px] font-black text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 rounded-full shadow-sm"
+                  title="Location Live Verified"
+                >
+                  <IconCheck size={12} stroke={3} />
+                  <span>{isKn ? "ದೃಢೀಕೃತ" : "Live"}</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* 2. Coordinates & Accuracy Status Line */}
+          <div className="flex items-center gap-1.5 pt-2 text-[11px] font-mono font-semibold text-emerald-400 flex-wrap">
+            <span>
+              {userLocation.lat.toFixed(5)}° N, {userLocation.lng.toFixed(5)}° E
+            </span>
+            {accuracy !== null && (
+              <>
+                <span className="text-slate-500">•</span>
+                <span className="text-amber-300 font-sans font-bold bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-400/30">
+                  ±{Math.round(accuracy)}m
+                </span>
+              </>
             )}
+            <span className="text-slate-500">•</span>
+            <span className="text-slate-300 font-sans font-medium">
+              {status === "locating"
+                ? (isKn ? "ಜಿಪಿಎಸ್ ಪಡೆಯಲಾಗುತ್ತಿದೆ…" : "Getting GPS…")
+                : status === "good"
+                  ? (isKn ? "ಜಿಪಿಎಸ್ ಲಾಕ್ ಆಗಿದೆ" : "GPS Locked")
+                  : status === "coarse"
+                    ? (isKn ? "ಅಂದಾಜು ಜಿಪಿಎಸ್" : "Approximate GPS")
+                    : (isKn ? "ಆಯ್ಕೆಮಾಡಿದ ಸೈಟ್" : "Custom Site")}
+            </span>
           </div>
 
           {/* Requirement 2: While status is "locating", show a live line: "Getting precise GPS… ±{accuracy} m" */}

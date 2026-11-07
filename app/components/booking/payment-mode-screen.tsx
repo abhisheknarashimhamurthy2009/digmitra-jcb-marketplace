@@ -48,9 +48,9 @@ export function PaymentModeScreen({
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#f8fafc] text-slate-900 pb-20 select-none">
+    <div className="flex-1 w-full flex flex-col overflow-y-auto bg-[#f8fafc] text-slate-900 select-none">
       {/* Top Header Bar */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-md shadow-sm">
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur-md shadow-sm shrink-0">
         <button
           type="button"
           onClick={onBack}
@@ -70,7 +70,7 @@ export function PaymentModeScreen({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-1 space-y-4 p-4 overflow-y-auto">
+      <form onSubmit={handleSubmit} className="flex-1 space-y-4 p-4 pb-10">
         {/* Site Details Snapshot Card */}
         <div className="rounded-3xl border border-slate-200 bg-white p-3.5 shadow-sm">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100">

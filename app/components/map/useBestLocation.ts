@@ -28,8 +28,8 @@ type Options = {
  * - Never re-centres anything by itself after it stops.
  */
 export function useBestLocation({
-  goodAccuracy = 20,
-  maxWaitMs = 60000,
+  goodAccuracy = 25,
+  maxWaitMs = 8000,
 }: Options = {}) {
   const [fix, setFix] = useState<Fix | null>(null);
   const [status, setStatus] = useState<LocStatus>("idle");
@@ -57,6 +57,29 @@ export function useBestLocation({
     best.current = null;
     setStatus("locating");
 
+    // 1. Instant check: grab available position immediately in < 1 second
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const f: Fix = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+          timestamp: pos.timestamp,
+        };
+        if (!best.current || f.accuracy < best.current.accuracy) {
+          best.current = f;
+          setFix(f);
+        }
+        if (f.accuracy <= goodAccuracy) {
+          stop();
+          setStatus("good");
+        }
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 4000 }
+    );
+
+    // 2. High-precision hardware watch stream to refine accuracy
     watchId.current = navigator.geolocation.watchPosition(
       (pos) => {
         const f: Fix = {
@@ -82,15 +105,15 @@ export function useBestLocation({
           stop();
           setStatus("denied");
         }
-        // TIMEOUT / POSITION_UNAVAILABLE: keep waiting, the overall timer decides.
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
     );
 
+    // 3. Fast settle timer: lock location in max 8s instead of waiting 60s
     timer.current = window.setTimeout(() => {
       stop();
       const b = best.current;
-      setStatus(b ? (b.accuracy <= goodAccuracy ? "good" : "coarse") : "unavailable");
+      setStatus(b ? (b.accuracy <= 40 ? "good" : "coarse") : "unavailable");
     }, maxWaitMs);
   }, [goodAccuracy, maxWaitMs, stop]);
 

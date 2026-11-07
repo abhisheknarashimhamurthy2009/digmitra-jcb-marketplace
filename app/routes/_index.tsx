@@ -313,7 +313,16 @@ export default function IndexRoute() {
       currentUser={currentUser}
       onLogout={handleLogout}
       t={t}
-      noScroll={currentUser?.role === "owner" || (currentUser?.role === "consumer" && (consumerPage === "map" || consumerPage === "live_tracking"))}
+      noScroll={
+        currentUser?.role === "owner" ||
+        (currentUser?.role === "consumer" &&
+          (consumerPage === "map" ||
+            consumerPage === "live_tracking" ||
+            consumerPage === "details" ||
+            consumerPage === "payment_mode" ||
+            consumerPage === "jcb_catalog" ||
+            consumerPage === "advance_payment"))
+      }
       onNavigate={(route) => {
         if (route === "live_tracking") {
           setConsumerPage("live_tracking");
